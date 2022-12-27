@@ -5,15 +5,16 @@ use std::collections::HashMap;
 pub enum SchemaValue
 {
     Null,
-    Object(HashMap<&'static str, SchemaValue>),
+    Object(HashMap<&'static str, SchemaValue>), // a hash map of the schematized fields in this struct
     Integer32(i32),
     Float32(f32),
     Bool(bool),
+    DynamicArray() // can be of any size in schema, is serialized into a static serialized array
     // TODO:
-    //  String
-    //  Enum
-    //  Impl (schema owner pointer)
-    //  Array (static, dynamic)
+    //   String
+    //   Enum
+    //   Impl (schema owner pointer)
+    //   Array (static, dynamic)
 }
 
 pub trait Schematize
@@ -88,8 +89,8 @@ struct Data
     x: i32,
     y: i32,
     z: i32,
-    
-    #[schema_default(inner.w=-45.0)]
+
+    #[schema_default(inner.w=32.0)]
     #[schema_default(inner.flag=false)]
     inner: InnerData,
 }
