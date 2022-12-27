@@ -3,28 +3,47 @@ extern crate proc_macro2;
 
 use quote::quote;
 
-fn derive_schema_default_fn(item_ident: &syn::Ident, fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
+type Fields= syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
+
+fn derive_schema_default_fn(item_ident: &syn::Ident, fields: &Fields) -> proc_macro2::TokenStream
 {
-    let fields_default= fields.map(|field| -> proc_macro2::TokenStream
+    // Set the schema default values
+    let fields_init_default= fields.iter().map(|field| -> proc_macro2::TokenStream
         {
             let field_ident= &field.ident;
             let field_type= &field.ty;
-            quote! (
-                #field_ident : #field_type::schema_default()
-            )
+
+            quote! ( #field_ident : #field_type::schema_default() )
         });
+
+    // Set the schema default value overrides defined by helper attributes
+    let fields_schema_default=
+        fields.iter().map(|field|
+                // Filter for all schema_default markup on this field
+                field.attrs.iter()
+                    .filter(|attr| attr.path.is_ident("schema_default"))
+                    .map(|attr| -> proc_macro2::TokenStream
+                        {
+                            // Parse the schema default expression
+                            let attr_tokens= attr.parse_args::<proc_macro2::TokenStream>()
+                                .expect("Unable to parse schema_default attribute");
+                            quote! ( #attr_tokens )
+                        })
+            ).flatten();
 
     quote! (
         fn schema_default() -> #item_ident
         {
-            #item_ident { #(#fields_default),* }
+            let mut schema_default= #item_ident { #(#fields_init_default),* };
+            #(schema_default.#fields_schema_default;)*
+            schema_default
         }
     )
 }
 
-fn derive_serialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
+fn derive_serialize_fn(fields: &Fields) -> proc_macro2::TokenStream
 {
-    let fields_serialize= fields.map(|field| -> proc_macro2::TokenStream
+    let fields_serialize= fields.iter().map(|field| -> proc_macro2::TokenStream
         {
             let field_ident= &field.ident;
             quote! (
@@ -44,9 +63,9 @@ fn derive_serialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2
 }
 
 
-fn derive_deserialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
+fn derive_deserialize_fn(fields: &Fields) -> proc_macro2::TokenStream
 {
-    let fields_deserialize= fields.map(|field| -> proc_macro2::TokenStream
+    let fields_deserialize= fields.iter().map(|field| -> proc_macro2::TokenStream
         {
             let field_ident= &field.ident;
             quote! (
@@ -70,22 +89,22 @@ fn derive_deserialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macr
 }
 
 
-#[proc_macro_derive(Schematize)]
+#[proc_macro_derive(Schematize, attributes(schema_default))]
 pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream
 {
     let item_ast: syn::DeriveInput= syn::parse_macro_input!(item);
     let item_ident= &item_ast.ident;
 
-    let serializer_impl= match item_ast.data
+    let schema_impl= match item_ast.data
     {
         syn::Data::Struct(data_struct) =>
             match data_struct.fields
             {
                 syn::Fields::Named(syn::FieldsNamed { named, .. }) =>
                 {
-                    let fields_schema_default_fn= derive_schema_default_fn(item_ident, named.iter());
-                    let fields_serialize_fn= derive_serialize_fn(named.iter());
-                    let fields_deserialize_fn= derive_deserialize_fn(named.iter());
+                    let fields_schema_default_fn= derive_schema_default_fn(item_ident, &named);
+                    let fields_serialize_fn= derive_serialize_fn(&named);
+                    let fields_deserialize_fn= derive_deserialize_fn(&named);
 
                     quote! (
                         impl Schematize for #item_ident
@@ -103,7 +122,7 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
         syn::Data::Union(_) => unimplemented!("Serialize is not implemented for union, name: {}", item_ident),
     };
 
-    println!("{}", serializer_impl);
+    //println!("{}", schema_impl);
 
-    serializer_impl.into()
+    schema_impl.into()
 }

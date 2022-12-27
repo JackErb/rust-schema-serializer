@@ -78,6 +78,7 @@ impl Schematize for bool
 struct InnerData
 {
     w: f32,
+    #[schema_default(flag=true)]
     flag: bool,
 }
 
@@ -87,6 +88,9 @@ struct Data
     x: i32,
     y: i32,
     z: i32,
+    
+    #[schema_default(inner.w=-45.0)]
+    #[schema_default(inner.flag=false)]
     inner: InnerData,
 }
 
@@ -98,6 +102,8 @@ fn main() {
     println!("{:?}", value);
 
     let mut datum2= Data::schema_default();
+    println!("{:?}", datum2);
+
     datum2.deserialize(&value);
     println!("{:?}", datum2);
 }
