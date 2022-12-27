@@ -24,11 +24,11 @@ dependencies = [
 name = "rust_schema"
 version = "0.1.0"
 dependencies = [
- "serializer",
+ "schema",
 ]
 
 [[package]]
-name = "serializer"
+name = "schema"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

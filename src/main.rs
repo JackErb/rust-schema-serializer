@@ -1,57 +1,93 @@
-use serializer::SchemaSerializer;
+use schema::Schematize;
 use std::collections::HashMap;
 
 #[derive(Debug)]
 pub enum SchemaValue
 {
     Null,
-    Object(HashMap<&'static str, Box<SchemaValue>>),
+    Object(HashMap<&'static str, SchemaValue>),
     Integer32(i32),
     Float32(f32),
     Bool(bool),
 }
 
-pub trait SchemaSerializer
+pub trait Schematize
 {
-    fn serialize(&self) -> Box<SchemaValue>;
+    fn schema_default() -> Self;
+    fn serialize(&self) -> SchemaValue;
+    fn deserialize(&mut self, schema_value: &SchemaValue);
 }
 
-impl SchemaSerializer for i32
+impl Schematize for i32
 {
-    fn serialize(&self) -> Box<SchemaValue>
+    fn schema_default() -> i32 { 0 }
+    fn serialize(&self) -> SchemaValue
     {
-        Box::new(SchemaValue::Integer32(*self))
+        SchemaValue::Integer32(*self)
+    }
+    fn deserialize(&mut self, schema_value: &SchemaValue)
+    {
+        match schema_value
+        {
+            SchemaValue::Integer32(schema_num) => *self= *schema_num,
+            _ => unimplemented!("Deserialize i32 hit a wrong value {:?}", schema_value)
+        }
     }
 }
 
-impl SchemaSerializer for f32
+
+impl Schematize for f32
 {
-    fn serialize(&self) -> Box<SchemaValue>
+    fn schema_default() -> f32 { 0.0 }
+    fn serialize(&self) -> SchemaValue
     {
-        Box::new(SchemaValue::Float32(*self))
+        SchemaValue::Float32(*self)
+    }
+    fn deserialize(&mut self, schema_value: &SchemaValue)
+    {
+        match schema_value
+        {
+            SchemaValue::Float32(schema_num) => *self= *schema_num,
+            _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
+        }
     }
 }
 
-impl SchemaSerializer for bool
+impl Schematize for bool
 {
-    fn serialize(&self) -> Box<SchemaValue>
+    fn schema_default() -> bool { false }
+    fn serialize(&self) -> SchemaValue
     {
-        Box::new(SchemaValue::Bool(*self))
+        SchemaValue::Bool(*self)
+    }
+    fn deserialize(&mut self, schema_value: &SchemaValue)
+    {
+        match schema_value
+        {
+            SchemaValue::Bool(schema_bool) => *self= *schema_bool,
+            _ => unimplemented!("Deserialize bool hit a wrong value {:?}", schema_value)
+        }
     }
 }
 
-#[derive(SchemaSerializer)]
+#[derive(Schematize, Debug)]
 struct Data
 {
     x: i32,
     y: i32,
     z: i32,
     w: f32,
+    flag: bool,
 }
 
 fn main() {
-    let datum= Data { x: -1, y: 20, z: 3, w: -1.2 };
+    let datum= Data { x: -1, y: 20, z: 3, w: -1.2, flag: true };
+    println!("{:?}", datum);
 
-    let data= datum.serialize();
-    println!("{:?}", data);
+    let value= datum.serialize();
+    println!("{:?}", value);
+
+    let mut datum2= Data::schema_default();
+    datum2.deserialize(&value);
+    println!("{:?}", datum2);
 }
