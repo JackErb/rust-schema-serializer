@@ -3,14 +3,24 @@ extern crate proc_macro2;
 
 use quote::quote;
 
-/* Serializer does the following things:
-    - Serialize function to write the state of the data structure to JSON
-        - Includes a hash of the serialized structure type for versioning reasons
+fn derive_schema_default_fn(item_ident: &syn::Ident, fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
+{
+    let fields_default= fields.map(|field| -> proc_macro2::TokenStream
+        {
+            let field_ident= &field.ident;
+            let field_type= &field.ty;
+            quote! (
+                #field_ident : #field_type::schema_default()
+            )
+        });
 
-    STRETCH:
-    - Creates a default constructor respecting helper attributes
-        - configurable default values for types
-*/
+    quote! (
+        fn schema_default() -> #item_ident
+        {
+            #item_ident { #(#fields_default),* }
+        }
+    )
+}
 
 fn derive_serialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
 {
@@ -59,45 +69,26 @@ fn derive_deserialize_fn(fields: syn::punctuated::Iter<syn::Field>) -> proc_macr
     )
 }
 
-fn derive_schema_default_fn(input_ident: &syn::Ident, fields: syn::punctuated::Iter<syn::Field>) -> proc_macro2::TokenStream
-{
-    let fields_default= fields.map(|field| -> proc_macro2::TokenStream
-        {
-            let field_ident= &field.ident;
-            let field_type= &field.ty;
-            quote! (
-                #field_ident : #field_type::schema_default()
-            )
-        });
-
-    quote! (
-        fn schema_default() -> #input_ident
-        {
-            #input_ident { #(#fields_default),* }
-        }
-    )
-}
-
 
 #[proc_macro_derive(Schematize)]
-pub fn derive_schematize_impl(input: proc_macro::TokenStream) -> proc_macro::TokenStream
+pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream
 {
-    let ast: syn::DeriveInput= syn::parse_macro_input!(input);
-    let input_ident= &ast.ident;
+    let item_ast: syn::DeriveInput= syn::parse_macro_input!(item);
+    let item_ident= &item_ast.ident;
 
-    let serializer_impl= match ast.data
+    let serializer_impl= match item_ast.data
     {
         syn::Data::Struct(data_struct) =>
             match data_struct.fields
             {
                 syn::Fields::Named(syn::FieldsNamed { named, .. }) =>
                 {
-                    let fields_schema_default_fn= derive_schema_default_fn(input_ident, named.iter());
+                    let fields_schema_default_fn= derive_schema_default_fn(item_ident, named.iter());
                     let fields_serialize_fn= derive_serialize_fn(named.iter());
                     let fields_deserialize_fn= derive_deserialize_fn(named.iter());
 
                     quote! (
-                        impl Schematize for #input_ident
+                        impl Schematize for #item_ident
                         {
                             #fields_schema_default_fn
                             #fields_serialize_fn
@@ -105,11 +96,11 @@ pub fn derive_schematize_impl(input: proc_macro::TokenStream) -> proc_macro::Tok
                         }
                     )
                 },
-                syn::Fields::Unnamed(_) => unimplemented!("Serialize is not implemented for unnamed fields struct."),
-                syn::Fields::Unit => unimplemented!("Serialize is not implemented for unit type."),
+                syn::Fields::Unnamed(_) => unimplemented!("Serialize is not implemented for unnamed fields struct, name: {}", item_ident),
+                syn::Fields::Unit => unimplemented!("Serialize is not implemented for unit type, name: {}", item_ident),
             }
-        syn::Data::Enum(_) => todo!("Serialize is not implemented for enum, name: {}", input_ident),
-        syn::Data::Union(_) => unimplemented!("Serialize is not implemented for union, name: {}", input_ident),
+        syn::Data::Enum(_) => todo!("Serialize is not implemented for enum, name: {}", item_ident),
+        syn::Data::Union(_) => unimplemented!("Serialize is not implemented for union, name: {}", item_ident),
     };
 
     println!("{}", serializer_impl);

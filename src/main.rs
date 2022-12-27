@@ -9,6 +9,11 @@ pub enum SchemaValue
     Integer32(i32),
     Float32(f32),
     Bool(bool),
+    // TODO:
+    //  String
+    //  Enum
+    //  Impl (schema owner pointer)
+    //  Array (static, dynamic)
 }
 
 pub trait Schematize
@@ -34,7 +39,6 @@ impl Schematize for i32
         }
     }
 }
-
 
 impl Schematize for f32
 {
@@ -71,17 +75,23 @@ impl Schematize for bool
 }
 
 #[derive(Schematize, Debug)]
+struct InnerData
+{
+    w: f32,
+    flag: bool,
+}
+
+#[derive(Schematize, Debug)]
 struct Data
 {
     x: i32,
     y: i32,
     z: i32,
-    w: f32,
-    flag: bool,
+    inner: InnerData,
 }
 
 fn main() {
-    let datum= Data { x: -1, y: 20, z: 3, w: -1.2, flag: true };
+    let datum= Data { x: -1, y: 20, z: 3, inner: InnerData { w: -1.2, flag: true } };
     println!("{:?}", datum);
 
     let value= datum.serialize();
