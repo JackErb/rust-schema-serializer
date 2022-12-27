@@ -4,6 +4,20 @@ use quote::quote;
 
 type StructFields= syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 
+macro_rules! cast {
+    ($target: expr, $pat: path) => {
+        {
+            if let $pat(a) = $target { // #1
+                a
+            } else {
+                panic!(
+                    "mismatch variant when cast to {}",
+                    stringify!($pat)); // #2
+            }
+        }
+    };
+}
+
 pub(crate)
 fn derive_schema_default_fn(
     item_ident: &syn::Ident,
@@ -12,13 +26,28 @@ fn derive_schema_default_fn(
     // Generate the token stream for initializing the default struct
     let fields_init_default= fields.iter().map(|field| -> proc_macro2::TokenStream
         {
-            let field_ident= &field.ident;
-            let field_type= &field.ty;
+            fn generate_schema_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream
+            {
+                match field_type
+                {
+                    syn::Type::Array(array) =>
+                    {
+                        let default_value= generate_schema_default_value(&array.elem);
+                        let size= cast!(&cast!(&array.len, syn::Expr::Lit).lit, syn::Lit::Int);
+                        quote! ( [#default_value; #size] )
+                    }
+                    _ => quote! ( #field_type::schema_default() )
+                }
+            }
 
-            quote! ( #field_ident : #field_type::schema_default() )
+            let field_ident= &field.ident;
+            let schema_default_value= generate_schema_default_value(&field.ty);
+            quote! (
+                #field_ident : #schema_default_value
+            )
         });
 
-    // Generate the token stream for schema default values. These are defined by macro helper attributes
+    // Generate the token stream for setting schema default values. These are defined by macro helper attributes.
     //  e.g.     #[schema_default(x=32)]
     //           i32 x;
     // the statement `x=32` is inlined into the schema_default function.
@@ -42,7 +71,7 @@ fn derive_schema_default_fn(
     quote! (
         fn schema_default() -> #item_ident
         {
-            // Create a basic schema default, zero-ed out #item_ident.
+            // Create a default, zero-ed out #item_ident.
             let mut schema_default= #item_ident { #(#fields_init_default),* };
 
             // Set any overrides specified by schema_default markup

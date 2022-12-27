@@ -1,5 +1,6 @@
 use schema::Schematize;
 use std::collections::HashMap;
+use std::vec::Vec;
 
 #[derive(Debug)]
 pub enum SchemaValue
@@ -9,7 +10,7 @@ pub enum SchemaValue
     Integer32(i32),
     Float32(f32),
     Bool(bool),
-    DynamicArray() // can be of any size in schema, is serialized into a static serialized array
+    Array(Vec<SchemaValue>) // can be of any size in schema, is serialized into a static serialized array
     // TODO:
     //   String
     //   Enum
@@ -75,6 +76,31 @@ impl Schematize for bool
     }
 }
 
+impl<T: Schematize, const N: usize> Schematize for [T; N]
+{
+    fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
+    fn serialize(&self) -> SchemaValue
+    {
+        let vector= self.iter().map(|item| item.serialize()).collect();
+        SchemaValue::Array(vector)
+    }
+    fn deserialize(&mut self, schema_value: &SchemaValue)
+    {
+        match schema_value
+        {
+            SchemaValue::Array(schema_vector) =>
+            {
+                assert!(schema_vector.len() == N, "Deserialize hit an array of the wrong size.");
+                for (index, item) in schema_vector.iter().enumerate()
+                {
+                    self[index].deserialize(item);
+                }
+            }
+            _ => unimplemented!("Deserialize array hit a wrong value")
+        }
+    }
+}
+
 #[derive(Schematize, Debug)]
 struct InnerData
 {
@@ -86,9 +112,7 @@ struct InnerData
 #[derive(Schematize, Debug)]
 struct Data
 {
-    x: i32,
-    y: i32,
-    z: i32,
+    point: [i32; 3],
 
     #[schema_default(inner.w=32.0)]
     #[schema_default(inner.flag=false)]
@@ -96,7 +120,7 @@ struct Data
 }
 
 fn main() {
-    let datum= Data { x: -1, y: 20, z: 3, inner: InnerData { w: -1.2, flag: true } };
+    let datum= Data { point: [1, 2, 3], inner: InnerData { w: -1.2, flag: true } };
     println!("{:?}", datum);
 
     let value= datum.serialize();

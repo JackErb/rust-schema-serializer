@@ -1,9 +1,14 @@
 /*
-    Defines the procedural macro #[derive(Schematize)] which can be added to items
+    Defines the procedural macro #[derive(Schematize)] which can be added to items (structs/enums)
     to generate schema functionality.
 
-    This includes:
-    - schema_default, serialize, deserialize
+    Functionality includes:
+      schema_default
+       - generates a default version of the struct, respecting any #[schema_default(...)] markup
+      serialize
+       - generates a schematized object representation of the object
+      deserialize
+       - deserializes the schematized object into an instance of the item
 */
 
 extern crate proc_macro;
@@ -52,7 +57,7 @@ pub fn derive_schematize_impl(
         _ => unimplemented!("Schematize only supports structs & enums")
     };
 
-    // println!("{}", schema_impl);
+    println!("{}", schema_impl);
 
     schema_impl.into()
 }
