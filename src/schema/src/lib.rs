@@ -14,9 +14,9 @@
 extern crate proc_macro;
 extern crate proc_macro2;
 
-mod schema_derive;
+mod struct_derive;
+mod enum_derive;
 
-use schema_derive::*;
 use quote::quote;
 
 #[proc_macro_derive(Schematize, attributes(schema_default))]
@@ -37,10 +37,10 @@ pub fn derive_schematize_impl(
                 {
                     let fields= fields_named.named;
 
-                    // Generated the Schematize implementation for this struct
-                    let fields_schema_default_fn= derive_schema_default_fn(item_ident, &fields);
-                    let fields_serialize_fn= derive_serialize_fn(&fields);
-                    let fields_deserialize_fn= derive_deserialize_fn(&fields);
+                    // Generate the Schematize implementation for this struct
+                    let fields_schema_default_fn= struct_derive::derive_default_fn(item_ident, &fields);
+                    let fields_serialize_fn= struct_derive::derive_serialize_fn(&fields);
+                    let fields_deserialize_fn= struct_derive::derive_deserialize_fn(&fields);
 
                     quote! (
                         impl Schematize for #item_ident
@@ -51,9 +51,26 @@ pub fn derive_schematize_impl(
                         }
                     )
                 },
-                _ => unimplemented!("Schematize only supports named structs"),
+                _ => unimplemented!("Schematize only supports named struct fields"),
             }
-        syn::Data::Enum(_) => todo!("Serialize is not yet implemented for enum."),
+        syn::Data::Enum(data_enum) =>
+        {
+            let variants= &data_enum.variants;
+
+            // Generate the Schematize implementation for this struct
+            let fields_schema_default_fn= enum_derive::derive_default_fn(item_ident, &variants);
+            let fields_serialize_fn= enum_derive::derive_serialize_fn(item_ident, &variants);
+            let fields_deserialize_fn= enum_derive::derive_deserialize_fn(item_ident, &variants);
+
+            quote! (
+                impl Schematize for #item_ident
+                {
+                    #fields_schema_default_fn
+                    #fields_serialize_fn
+                    #fields_deserialize_fn
+                }
+            )
+        }
         _ => unimplemented!("Schematize only supports structs & enums")
     };
 

@@ -18,30 +18,30 @@ macro_rules! cast {
     };
 }
 
-pub(crate)
-fn derive_schema_default_fn(
+fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream
+{
+    match field_type
+    {
+        syn::Type::Array(array) =>
+        {
+            let default_value= generate_default_value(&array.elem);
+            let size= cast!(&cast!(&array.len, syn::Expr::Lit).lit, syn::Lit::Int);
+            quote! ( [#default_value; #size] )
+        }
+        _ => quote! ( #field_type::schema_default() )
+    }
+}
+
+
+pub fn derive_default_fn(
     item_ident: &syn::Ident,
     fields: &StructFields) -> proc_macro2::TokenStream
 {
     // Generate the token stream for initializing the default struct
     let fields_init_default= fields.iter().map(|field| -> proc_macro2::TokenStream
         {
-            fn generate_schema_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream
-            {
-                match field_type
-                {
-                    syn::Type::Array(array) =>
-                    {
-                        let default_value= generate_schema_default_value(&array.elem);
-                        let size= cast!(&cast!(&array.len, syn::Expr::Lit).lit, syn::Lit::Int);
-                        quote! ( [#default_value; #size] )
-                    }
-                    _ => quote! ( #field_type::schema_default() )
-                }
-            }
-
             let field_ident= &field.ident;
-            let schema_default_value= generate_schema_default_value(&field.ty);
+            let schema_default_value= generate_default_value(&field.ty);
             quote! (
                 #field_ident : #schema_default_value
             )
@@ -82,8 +82,7 @@ fn derive_schema_default_fn(
     )
 }
 
-pub(crate)
-fn derive_serialize_fn(
+pub fn derive_serialize_fn(
     fields: &StructFields) -> proc_macro2::TokenStream
 {
     // Generate the token stream for building the field map
@@ -109,8 +108,7 @@ fn derive_serialize_fn(
     )
 }
 
-pub(crate)
-fn derive_deserialize_fn(
+pub fn derive_deserialize_fn(
     fields: &StructFields) -> proc_macro2::TokenStream
 {
     let fields_deserialize= fields.iter().map(|field| -> proc_macro2::TokenStream
@@ -129,7 +127,7 @@ fn derive_deserialize_fn(
             {
                 SchemaValue::Object(fields_map) =>
                 {
-                    // Recursively call deserialize on all fields
+                    // Recursively call deserialize on fields
                     #(#fields_deserialize)*
                 }
                 _ => unimplemented!("Deserialize object hit a wrong value {:?}", schema_value),

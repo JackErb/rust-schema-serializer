@@ -10,10 +10,10 @@ pub enum SchemaValue
     Integer32(i32),
     Float32(f32),
     Bool(bool),
-    Array(Vec<SchemaValue>) // can be of any size in schema, is serialized into a static serialized array
+    Array(Vec<SchemaValue>), // dynamically sized array, this is also used to represent static arrays
+    EnumVariant(&'static str)
     // TODO:
     //   String
-    //   Enum
     //   Impl (schema owner pointer)
     //   Array (static, dynamic)
 }
@@ -102,16 +102,27 @@ impl<T: Schematize, const N: usize> Schematize for [T; N]
 }
 
 #[derive(Schematize, Debug)]
+enum DataType
+{
+    Primary,
+    Secondary,
+    Tertiary,
+}
+
+#[derive(Schematize, Debug)]
 struct InnerData
 {
     w: f32,
     #[schema_default(flag=true)]
     flag: bool,
+    #[schema_default(type_enum=DataType::Tertiary)]
+    type_enum: DataType,
 }
 
 #[derive(Schematize, Debug)]
 struct Data
 {
+    #[schema_default(point[0]=-1)]
     point: [i32; 3],
 
     #[schema_default(inner.w=32.0)]
@@ -120,7 +131,7 @@ struct Data
 }
 
 fn main() {
-    let datum= Data { point: [1, 2, 3], inner: InnerData { w: -1.2, flag: true } };
+    let datum= Data { point: [1, 2, 3], inner: InnerData { w: -1.2, flag: true, type_enum: DataType::Secondary } };
     println!("{:?}", datum);
 
     let value= datum.serialize();
