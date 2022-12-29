@@ -109,27 +109,26 @@ pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
     }
 }
 
-pub fn derive_deserialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
+pub fn derive_deserialize_fn(
+    item_ident: &syn::Ident,
+    fields: &StructFields) -> proc_macro2::TokenStream {
 
     let fields_deserialize= fields.iter().map(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
+            let field_type= &field.ty;
             quote! {
                 // Deserialize the field given the schema value from the object's schema
-                self.#field_ident.deserialize(&fields_map[stringify!(#field_ident)]);
+                #field_ident: <#field_type>::deserialize(&fields_map[stringify!(#field_ident)])
             }
         });
 
     quote! {
-        fn deserialize(&mut self, schema_value: &SchemaValue)
+        fn deserialize(schema_value: &SchemaValue) -> #item_ident
         {
             match schema_value
             {
-                SchemaValue::Object(fields_map) =>
-                {
-                    // Recursively call deserialize on fields
-                    #(#fields_deserialize)*
-                }
+                SchemaValue::Object(fields_map) => #item_ident { #(#fields_deserialize),* },
                 _ => unimplemented!("Deserialize object hit a wrong value {:?}", schema_value),
             }
         }

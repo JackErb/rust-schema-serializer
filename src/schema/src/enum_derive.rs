@@ -56,15 +56,15 @@ pub fn derive_deserialize_fn(
         });
 
     quote! {
-        fn deserialize(&mut self, schema_value: &SchemaValue) {
-            *self= match schema_value {
+        fn deserialize(schema_value: &SchemaValue) -> #enum_ident {
+            match schema_value {
                 SchemaValue::EnumVariant(field_name) =>
                     match *field_name{
                         #(#variants_deserialize)*
                         _ => unimplemented!("Deserialize enum hit an unrecognized variant {}", field_name)
                     },
                 _ => unimplemented!("Deserialize enum hit a wrong value {:?}", schema_value)
-            };
+            }
         }
     }
 }

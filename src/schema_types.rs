@@ -2,6 +2,7 @@ use crate::Schematize;
 use crate::SchemaValue;
 
 use std::marker::PhantomData;
+use std::vec::Vec;
 
 // Refers to an allocated block of memory
 // This is allocated on the heap. But in the future it may refer to an index in datum arrays.
@@ -36,7 +37,7 @@ struct DynamicArray<T> {
 }
 
 impl<'a, T> DynamicArray<T> {
-    fn as_slice(&self) -> Option<&'a [T]> {
+    pub fn as_slice(&self) -> Option<&'a [T]> {
         if self.block_ptr.is_null() {
             None
         } else {
@@ -45,6 +46,10 @@ impl<'a, T> DynamicArray<T> {
             })
         }
     }
+
+    /*pub fn from_vec(vec: Vec) -> DynamicArray<T> {
+
+    }*/
 }
 
 impl<T: Schematize> Schematize for DynamicArray<T> {
@@ -69,7 +74,7 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
         SchemaValue::Array(vec)
     }
 
-    fn deserialize(&mut self, schema_value: &SchemaValue) {
+    fn deserialize(schema_value: &SchemaValue) -> DynamicArray<T> {
         // TODO: this shouldn't be allocated on the heap, instead a block allocator should be
         // passed into deserialize
         match schema_value {
@@ -81,13 +86,15 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
                     std::alloc::alloc(layout)
                 };
 
-                self.len= vec.len();
-                self.block_ptr= BlockPointer {
-                    handle: BlockHandle {
-                        ptr: ptr as *mut usize
+                DynamicArray {
+                    block_ptr: BlockPointer {
+                        handle: BlockHandle {
+                            ptr: ptr as *mut usize
+                        },
+                        offset: 0,
+                        phantom: PhantomData,
                     },
-                    offset: 0,
-                    phantom: PhantomData
+                    len: 0,
                 }
             },
             _ => unimplemented!("Deserialize array hit a wrong value"),

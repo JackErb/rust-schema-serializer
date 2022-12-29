@@ -1,9 +1,9 @@
 use schema::Schematize;
 use std::collections::HashMap;
 use std::vec::Vec;
+use std::marker::Copy;
 
 mod schema_types;
-
 
 #[derive(Debug)]
 pub enum SchemaValue {
@@ -24,20 +24,19 @@ pub enum SchemaValue {
 pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
-    fn deserialize(&mut self, schema_value: &SchemaValue);
+    // should this be instead ???
+    // fn deserialize(&SchemaValue) -> Self;
+    fn deserialize(schema_value: &SchemaValue) -> Self;
 }
 
 impl Schematize for i32 {
     fn schema_default() -> i32 { 0 }
-    fn serialize(&self) -> SchemaValue
-    {
+    fn serialize(&self) -> SchemaValue {
         SchemaValue::Integer32(*self)
     }
-    fn deserialize(&mut self, schema_value: &SchemaValue)
-    {
-        match schema_value
-        {
-            SchemaValue::Integer32(schema_num) => *self= *schema_num,
+    fn deserialize(schema_value: &SchemaValue) -> i32 {
+        match schema_value {
+            SchemaValue::Integer32(schema_num) => *schema_num,
             _ => unimplemented!("Deserialize i32 hit a wrong value {:?}", schema_value)
         }
     }
@@ -45,15 +44,12 @@ impl Schematize for i32 {
 
 impl Schematize for f32 {
     fn schema_default() -> f32 { 0.0 }
-    fn serialize(&self) -> SchemaValue
-    {
+    fn serialize(&self) -> SchemaValue {
         SchemaValue::Float32(*self)
     }
-    fn deserialize(&mut self, schema_value: &SchemaValue)
-    {
-        match schema_value
-        {
-            SchemaValue::Float32(schema_num) => *self= *schema_num,
+    fn deserialize(schema_value: &SchemaValue) -> f32 {
+        match schema_value {
+            SchemaValue::Float32(schema_num) => *schema_num,
             _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
         }
     }
@@ -61,39 +57,35 @@ impl Schematize for f32 {
 
 impl Schematize for bool {
     fn schema_default() -> bool { false }
-    fn serialize(&self) -> SchemaValue
-    {
+    fn serialize(&self) -> SchemaValue {
         SchemaValue::Bool(*self)
     }
-    fn deserialize(&mut self, schema_value: &SchemaValue)
-    {
-        match schema_value
-        {
-            SchemaValue::Bool(schema_bool) => *self= *schema_bool,
+    fn deserialize(schema_value: &SchemaValue) -> bool {
+        match schema_value {
+            SchemaValue::Bool(schema_bool) => *schema_bool,
             _ => unimplemented!("Deserialize bool hit a wrong value {:?}", schema_value)
         }
     }
 }
 
-impl<T: Schematize, const N: usize> Schematize for [T; N] {
+impl<T: Schematize + Copy, const N: usize> Schematize for [T; N] {
     fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
-    fn serialize(&self) -> SchemaValue
-    {
+
+    fn serialize(&self) -> SchemaValue {
         let vector= self.iter().map(|item| item.serialize()).collect();
         SchemaValue::Array(vector)
     }
-    fn deserialize(&mut self, schema_value: &SchemaValue)
-    {
-        match schema_value
-        {
-            SchemaValue::Array(schema_vector) =>
-            {
+
+    fn deserialize(schema_value: &SchemaValue) -> [T; N] {
+        match schema_value {
+            SchemaValue::Array(schema_vector) => {
                 assert!(schema_vector.len() == N, "Deserialize hit an array of the wrong size.");
-                for (index, item) in schema_vector.iter().enumerate()
-                {
-                    self[index].deserialize(item);
+                let mut array: [T; N]= [T::schema_default(); N];
+                for (index, item) in schema_vector.iter().enumerate() {
+                    array[index]= T::deserialize(item);
                 }
-            }
+                array
+            },
             _ => unimplemented!("Deserialize array hit a wrong value")
         }
     }
@@ -129,9 +121,6 @@ fn main() {
     let value= datum.serialize();
     //println!("{:?}", value);
 
-    let mut datum2= Data::schema_default();
-    //println!("{:?}", datum2);
-
-    datum2.deserialize(&value);
+    let datum2= Data::deserialize(&value);
     println!("{:?}", datum2);
 }

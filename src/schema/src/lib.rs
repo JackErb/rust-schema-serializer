@@ -21,7 +21,6 @@ use quote::quote;
 
 #[proc_macro_derive(Schematize, attributes(schema_default))]
 pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
-
     // The abstract syntax tree representing the parsed item
     let item_ast: syn::DeriveInput= syn::parse_macro_input!(item);
     let item_ident= &item_ast.ident;
@@ -36,7 +35,7 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
                     // Generate the Schematize implementation for this struct
                     let fields_schema_default_fn= struct_derive::derive_default_fn(item_ident, &fields);
                     let fields_serialize_fn= struct_derive::derive_serialize_fn(&fields);
-                    let fields_deserialize_fn= struct_derive::derive_deserialize_fn(&fields);
+                    let fields_deserialize_fn= struct_derive::derive_deserialize_fn(item_ident, &fields);
 
                     quote! {
                         impl Schematize for #item_ident {
@@ -67,7 +66,7 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
         _ => unimplemented!("Schematize only supports structs & enums")
     };
 
-    //println!("{}", schema_impl);
+    println!("{}", schema_impl);
 
     schema_impl.into()
 }
