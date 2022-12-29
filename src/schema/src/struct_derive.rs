@@ -8,12 +8,12 @@ type StructFields= syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 macro_rules! cast {
     ($target: expr, $pat: path) => {
         {
-            if let $pat(a) = $target { // #1
+            if let $pat(a) = $target {
                 a
             } else {
                 panic!(
                     "mismatch variant when cast to {}",
-                    stringify!($pat)); // #2
+                    stringify!($pat));
             }
         }
     };
@@ -23,29 +23,33 @@ fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream
 {
     match field_type
     {
-        syn::Type::Array(array) =>
-        {
+        syn::Type::Array(array) => {
             let default_value= generate_default_value(&array.elem);
             let size= cast!(&cast!(&array.len, syn::Expr::Lit).lit, syn::Lit::Int);
-            quote! ( [#default_value; #size] )
+            quote! {
+                [#default_value; #size]
+            }
         }
-        _ => quote! ( #field_type::schema_default() )
+        _ =>
+            quote! {
+                #field_type::schema_default()
+            }
     }
 }
 
 
 pub fn derive_default_fn(
     item_ident: &syn::Ident,
-    fields: &StructFields) -> proc_macro2::TokenStream
-{
+    fields: &StructFields) -> proc_macro2::TokenStream {
+
     // Generate the token stream for initializing the default struct
-    let fields_init_default= fields.iter().map(|field| -> proc_macro2::TokenStream
-        {
+    let fields_init_default= fields.iter().map(
+        |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
             let schema_default_value= generate_default_value(&field.ty);
-            quote! (
+            quote! {
                 #field_ident : #schema_default_value
-            )
+            }
         });
 
     // Generate the token stream for setting schema default values. These are defined by macro helper attributes.
@@ -60,8 +64,7 @@ pub fn derive_default_fn(
                 // Look for any schema_default markup on this field
                 field.attrs.iter()
                     .filter(|attr| attr.path.is_ident("schema_default"))
-                    .map(|attr| -> proc_macro2::TokenStream
-                        {
+                    .map(|attr| -> proc_macro2::TokenStream {
                             // Parse the expression, then return the token stream
                             let attr_tokens= attr.parse_args::<proc_macro2::TokenStream>()
                                 .expect("Unable to parse schema_default attribute");
@@ -69,9 +72,8 @@ pub fn derive_default_fn(
                         })
             ).flatten();
 
-    quote! (
-        fn schema_default() -> #item_ident
-        {
+    quote! {
+        fn schema_default() -> #item_ident {
             // Create a default, zero-ed out #item_ident.
             let mut schema_default= #item_ident { #(#fields_init_default),* };
 
@@ -80,15 +82,13 @@ pub fn derive_default_fn(
 
             schema_default
         }
-    )
+    }
 }
 
-pub fn derive_serialize_fn(
-    fields: &StructFields) -> proc_macro2::TokenStream
-{
+pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
     // Generate the token stream for building the field map
-    let fields_serialize= fields.iter().map(|field| -> proc_macro2::TokenStream
-        {
+    let fields_serialize= fields.iter().map(
+        |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
             quote! (
                 // Insert to the map, recurisvely calling serialize on the field.
@@ -97,7 +97,7 @@ pub fn derive_serialize_fn(
             )
         });
 
-    quote!(
+    quote! {
         fn serialize(&self) -> SchemaValue
         {
             // Build the hash map representing this object
@@ -106,22 +106,21 @@ pub fn derive_serialize_fn(
 
             SchemaValue::Object(fields_map)
         }
-    )
+    }
 }
 
-pub fn derive_deserialize_fn(
-    fields: &StructFields) -> proc_macro2::TokenStream
-{
-    let fields_deserialize= fields.iter().map(|field| -> proc_macro2::TokenStream
-        {
+pub fn derive_deserialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
+
+    let fields_deserialize= fields.iter().map(
+        |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
-            quote! (
+            quote! {
                 // Deserialize the field given the schema value from the object's schema
                 self.#field_ident.deserialize(&fields_map[stringify!(#field_ident)]);
-            )
+            }
         });
 
-    quote!(
+    quote! {
         fn deserialize(&mut self, schema_value: &SchemaValue)
         {
             match schema_value
@@ -134,5 +133,5 @@ pub fn derive_deserialize_fn(
                 _ => unimplemented!("Deserialize object hit a wrong value {:?}", schema_value),
             }
         }
-    )
+    }
 }

@@ -47,8 +47,7 @@ impl<'a, T> DynamicArray<T> {
     }
 }
 
-impl<T: Schematize> Schematize for DynamicArray<T>
-{
+impl<T: Schematize> Schematize for DynamicArray<T> {
     fn schema_default() -> DynamicArray<T> {
         DynamicArray {
             block_ptr: BlockPointer {

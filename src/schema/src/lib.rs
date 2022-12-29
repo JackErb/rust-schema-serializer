@@ -20,9 +20,8 @@ mod enum_derive;
 use quote::quote;
 
 #[proc_macro_derive(Schematize, attributes(schema_default))]
-pub fn derive_schematize_impl(
-    item: proc_macro::TokenStream) -> proc_macro::TokenStream
-{
+pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+
     // The abstract syntax tree representing the parsed item
     let item_ast: syn::DeriveInput= syn::parse_macro_input!(item);
     let item_ident= &item_ast.ident;

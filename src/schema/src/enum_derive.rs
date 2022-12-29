@@ -6,8 +6,8 @@ type EnumVariants= syn::punctuated::Punctuated<syn::Variant, syn::token::Comma>;
 
 pub fn derive_default_fn(
     enum_ident: &syn::Ident,
-    enum_variants: &EnumVariants) -> proc_macro2::TokenStream
-{
+    enum_variants: &EnumVariants) -> proc_macro2::TokenStream {
+
     assert!(enum_variants.len() > 0, "Cannot schematize uninhabitable enum.");
 
     // TODO: Look for schema_default markup
@@ -21,17 +21,16 @@ pub fn derive_default_fn(
 
 pub fn derive_serialize_fn(
     enum_ident: &syn::Ident,
-    enum_variants: &EnumVariants) -> proc_macro2::TokenStream
-{
+    enum_variants: &EnumVariants) -> proc_macro2::TokenStream {
+
     // Generate map from enum value to string representing enum
     let variants_serialize= enum_variants.iter().map(
-        |variant| -> proc_macro2::TokenStream
-        {
+        |variant| -> proc_macro2::TokenStream {
             assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
-            quote! (
+            quote! {
                 #enum_ident::#variant_ident => stringify!(#variant_ident),
-            )
+            }
         });
 
     quote! {
@@ -45,16 +44,15 @@ pub fn derive_serialize_fn(
 
 pub fn derive_deserialize_fn(
     enum_ident: &syn::Ident,
-    enum_variants: &EnumVariants) -> proc_macro2::TokenStream
-{
+    enum_variants: &EnumVariants) -> proc_macro2::TokenStream {
+
     let variants_deserialize= enum_variants.iter().map(
-        |variant| -> proc_macro2::TokenStream
-        {
+        |variant| -> proc_macro2::TokenStream {
             assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
-            quote! (
+            quote! {
                 stringify!(#variant_ident) => #enum_ident::#variant_ident,
-            )
+            }
         });
 
     quote! {
