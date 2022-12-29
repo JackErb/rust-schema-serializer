@@ -8,7 +8,7 @@ pub fn derive_default_fn(
     enum_ident: &syn::Ident,
     enum_variants: &EnumVariants) -> proc_macro2::TokenStream
 {
-    assert!(enum_variants.len() > 0, "Cannot schematize uninhabitabl enum.");
+    assert!(enum_variants.len() > 0, "Cannot schematize uninhabitable enum.");
 
     // TODO: Look for schema_default markup
     let first_variant= &enum_variants[0].ident;

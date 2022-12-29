@@ -4,6 +4,7 @@ use quote::quote;
 
 type StructFields= syn::punctuated::Punctuated<syn::Field, syn::token::Comma>;
 
+// Cast to an explicit enum type, panicking if it fails.
 macro_rules! cast {
     ($target: expr, $pat: path) => {
         {

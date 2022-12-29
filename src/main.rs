@@ -2,20 +2,26 @@ use schema::Schematize;
 use std::collections::HashMap;
 use std::vec::Vec;
 
+mod string;
+use string::SchemaString;
+
+
 #[derive(Debug)]
 pub enum SchemaValue
 {
-    Null,
     Object(HashMap<&'static str, SchemaValue>), // a hash map of the schematized fields in this struct
     Integer32(i32),
     Float32(f32),
     Bool(bool),
     Array(Vec<SchemaValue>), // dynamically sized array, this is also used to represent static arrays
-    EnumVariant(&'static str)
+    EnumVariant(&'static str), // todo: support fields with an optional object attached
+    //String(Box<&str>),
     // TODO:
     //   String
-    //   Impl (schema owner pointer)
-    //   Array (static, dynamic)
+    //   Impl (schema owner pointer/mix in pattern)
+    //     - the mix in pattern could be accomplished via Enums with fields instead, maybe easier
+    //   Array
+    //     - we have the schema array type, but need to support serializing into a dynamic sized array
 }
 
 pub trait Schematize
@@ -112,8 +118,6 @@ enum DataType
 #[derive(Schematize, Debug)]
 struct InnerData
 {
-    w: f32,
-    #[schema_default(flag=true)]
     flag: bool,
     #[schema_default(type_enum=DataType::Tertiary)]
     type_enum: DataType,
@@ -125,20 +129,21 @@ struct Data
     #[schema_default(point[0]=-1)]
     point: [i32; 3],
 
-    #[schema_default(inner.w=32.0)]
     #[schema_default(inner.flag=false)]
     inner: InnerData,
+
+    string: SchemaString;
 }
 
 fn main() {
-    let datum= Data { point: [1, 2, 3], inner: InnerData { w: -1.2, flag: true, type_enum: DataType::Secondary } };
+    let datum= Data { point: [1, 2, 3], inner: InnerData { flag: true, type_enum: DataType::Secondary } };
     println!("{:?}", datum);
 
     let value= datum.serialize();
-    println!("{:?}", value);
+    //println!("{:?}", value);
 
     let mut datum2= Data::schema_default();
-    println!("{:?}", datum2);
+    //println!("{:?}", datum2);
 
     datum2.deserialize(&value);
     println!("{:?}", datum2);

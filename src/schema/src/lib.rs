@@ -74,7 +74,7 @@ pub fn derive_schematize_impl(
         _ => unimplemented!("Schematize only supports structs & enums")
     };
 
-    println!("{}", schema_impl);
+    //println!("{}", schema_impl);
 
     schema_impl.into()
 }
