@@ -2,20 +2,17 @@ use schema::Schematize;
 use std::collections::HashMap;
 use std::vec::Vec;
 
-mod string;
-use string::SchemaString;
+mod schema_types;
 
 
 #[derive(Debug)]
-pub enum SchemaValue
-{
+pub enum SchemaValue {
     Object(HashMap<&'static str, SchemaValue>), // a hash map of the schematized fields in this struct
     Integer32(i32),
     Float32(f32),
     Bool(bool),
     Array(Vec<SchemaValue>), // dynamically sized array, this is also used to represent static arrays
     EnumVariant(&'static str), // todo: support fields with an optional object attached
-    //String(Box<&str>),
     // TODO:
     //   String
     //   Impl (schema owner pointer/mix in pattern)
@@ -24,15 +21,13 @@ pub enum SchemaValue
     //     - we have the schema array type, but need to support serializing into a dynamic sized array
 }
 
-pub trait Schematize
-{
+pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
     fn deserialize(&mut self, schema_value: &SchemaValue);
 }
 
-impl Schematize for i32
-{
+impl Schematize for i32 {
     fn schema_default() -> i32 { 0 }
     fn serialize(&self) -> SchemaValue
     {
@@ -48,8 +43,7 @@ impl Schematize for i32
     }
 }
 
-impl Schematize for f32
-{
+impl Schematize for f32 {
     fn schema_default() -> f32 { 0.0 }
     fn serialize(&self) -> SchemaValue
     {
@@ -65,8 +59,7 @@ impl Schematize for f32
     }
 }
 
-impl Schematize for bool
-{
+impl Schematize for bool {
     fn schema_default() -> bool { false }
     fn serialize(&self) -> SchemaValue
     {
@@ -82,8 +75,7 @@ impl Schematize for bool
     }
 }
 
-impl<T: Schematize, const N: usize> Schematize for [T; N]
-{
+impl<T: Schematize, const N: usize> Schematize for [T; N] {
     fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
     fn serialize(&self) -> SchemaValue
     {
@@ -108,31 +100,26 @@ impl<T: Schematize, const N: usize> Schematize for [T; N]
 }
 
 #[derive(Schematize, Debug)]
-enum DataType
-{
+enum DataType {
     Primary,
     Secondary,
     Tertiary,
 }
 
 #[derive(Schematize, Debug)]
-struct InnerData
-{
+struct InnerData {
     flag: bool,
     #[schema_default(type_enum=DataType::Tertiary)]
     type_enum: DataType,
 }
 
 #[derive(Schematize, Debug)]
-struct Data
-{
+struct Data {
     #[schema_default(point[0]=-1)]
     point: [i32; 3],
 
     #[schema_default(inner.flag=false)]
     inner: InnerData,
-
-    string: SchemaString;
 }
 
 fn main() {
