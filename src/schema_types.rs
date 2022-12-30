@@ -1,35 +1,6 @@
 use crate::Schematize;
 use crate::SchemaValue;
-
-use std::marker::PhantomData;
-use std::vec::Vec;
-
-// Refers to an allocated block of memory
-// This is allocated on the heap. But in the future it may refer to an index in datum arrays.
-#[allow(non_camel_case_types)]
-pub struct BlockHandle {
-    ptr: *mut usize,
-}
-
-#[allow(non_camel_case_types)]
-pub struct BlockPointer<T> {
-    handle: BlockHandle,
-    offset: u16,
-    phantom: PhantomData<T>
-
-}
-
-impl<T> BlockPointer<T> {
-    pub fn get_pointer(&self) -> *const T {
-        unsafe {
-            self.handle.ptr.add(self.offset as usize) as *const T
-        }
-    }
-
-    pub fn is_null(&self) -> bool {
-        self.handle.ptr.is_null()
-    }
-}
+use crate::block_pointer::BlockPointer;
 
 struct DynamicArray<T> {
     block_ptr: BlockPointer<T>,
@@ -46,28 +17,18 @@ impl<'a, T> DynamicArray<T> {
             })
         }
     }
-
-    /*pub fn from_vec(vec: Vec) -> DynamicArray<T> {
-
-    }*/
 }
 
 impl<T: Schematize> Schematize for DynamicArray<T> {
     fn schema_default() -> DynamicArray<T> {
         DynamicArray {
-            block_ptr: BlockPointer {
-                handle: BlockHandle {
-                    ptr: std::ptr::null_mut()
-                },
-                offset: 0,
-                phantom: PhantomData
-            },
+            block_ptr: BlockPointer::null(),
             len: 0,
         }
     }
 
     fn serialize(&self) -> SchemaValue {
-        let vec= match self.as_slice() {
+        let vec: Vec<SchemaValue>= match self.as_slice() {
             Some(slice) => slice.iter().map(|element| element.serialize()).collect(),
             None => Vec::new()
         };
@@ -83,17 +44,11 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
 
                 // TODO: This is a memory leak
                 let ptr= unsafe {
-                    std::alloc::alloc(layout)
+                    std::alloc::alloc(layout) as *mut T
                 };
 
                 DynamicArray {
-                    block_ptr: BlockPointer {
-                        handle: BlockHandle {
-                            ptr: ptr as *mut usize
-                        },
-                        offset: 0,
-                        phantom: PhantomData,
-                    },
+                    block_ptr: BlockPointer::from_raw_parts(ptr, 0),
                     len: 0,
                 }
             },

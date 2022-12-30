@@ -2,8 +2,11 @@ use schema::Schematize;
 use std::collections::HashMap;
 use std::vec::Vec;
 use std::marker::Copy;
+use std::env;
 
+pub mod block_pointer;
 mod schema_types;
+mod parser;
 
 #[derive(Debug)]
 pub enum SchemaValue {
@@ -13,6 +16,7 @@ pub enum SchemaValue {
     Bool(bool),
     Array(Vec<SchemaValue>), // dynamically sized array, this is also used to represent static arrays
     EnumVariant(&'static str), // todo: support fields with an optional object attached
+    Null,
     // TODO:
     //   String
     //   Impl (schema owner pointer/mix in pattern)
@@ -24,16 +28,16 @@ pub enum SchemaValue {
 pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
-    // should this be instead ???
-    // fn deserialize(&SchemaValue) -> Self;
     fn deserialize(schema_value: &SchemaValue) -> Self;
 }
 
 impl Schematize for i32 {
     fn schema_default() -> i32 { 0 }
+
     fn serialize(&self) -> SchemaValue {
         SchemaValue::Integer32(*self)
     }
+
     fn deserialize(schema_value: &SchemaValue) -> i32 {
         match schema_value {
             SchemaValue::Integer32(schema_num) => *schema_num,
@@ -44,9 +48,11 @@ impl Schematize for i32 {
 
 impl Schematize for f32 {
     fn schema_default() -> f32 { 0.0 }
+
     fn serialize(&self) -> SchemaValue {
         SchemaValue::Float32(*self)
     }
+
     fn deserialize(schema_value: &SchemaValue) -> f32 {
         match schema_value {
             SchemaValue::Float32(schema_num) => *schema_num,
@@ -57,9 +63,11 @@ impl Schematize for f32 {
 
 impl Schematize for bool {
     fn schema_default() -> bool { false }
+
     fn serialize(&self) -> SchemaValue {
         SchemaValue::Bool(*self)
     }
+
     fn deserialize(schema_value: &SchemaValue) -> bool {
         match schema_value {
             SchemaValue::Bool(schema_bool) => *schema_bool,
@@ -114,13 +122,34 @@ struct Data {
     inner: InnerData,
 }
 
-fn main() {
+#[derive(Schematize, Debug)]
+struct ParserData {
+    x: i32,
+}
+
+fn serde_test() {
     let datum= Data { point: [1, 2, 3], inner: InnerData { flag: true, type_enum: DataType::Secondary } };
     println!("{:?}", datum);
 
-    let value= datum.serialize();
-    //println!("{:?}", value);
+    let serialized_value= datum.serialize();
 
-    let datum2= Data::deserialize(&value);
+    let datum2= Data::deserialize(&serialized_value);
     println!("{:?}", datum2);
+}
+
+fn parse_test() {
+    let args: Vec<String>= env::args().collect();
+    println!("{:?}", args);
+    if args.len() > 1 {
+        let file_path= &args[1];
+        println!("Reading block definition {}", file_path);
+        let block_definition= parser::load_definition::<ParserData>(&file_path);
+    } else {
+
+    }
+}
+
+fn main() {
+    //serde_test();
+    parse_test();
 }
