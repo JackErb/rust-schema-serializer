@@ -3,13 +3,11 @@ mod tokens;
 use crate::block_pointer::BlockHandle;
 use crate::SchemaValue;
 use crate::Schematize;
-use tokens::Symbol;
 use tokens::Token;
 
 use std::marker::PhantomData;
 use std::fs;
 use std::str;
-use std::iter;
 
 pub struct BlockDefinition<T> {
     block_handle: BlockHandle<T>, // this CANNOT be null

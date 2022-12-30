@@ -14,9 +14,9 @@ pub enum Symbol {
 #[derive(Debug)]
 pub enum Token {
     Identifier(String), // A literal identifier (e.g. field name or an enum variant)
+    String(String),
     Integer(i64),
     Decimal(f64),
-    String(String),
     Punctuation(Symbol),
 }
 
@@ -39,7 +39,6 @@ fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> Result<Token, &'stati
     let mut is_decimal= false;
 
     while let Some(next_char)= chars.next() {
-        println!("Next char: {}", next_char);
         match next_char {
             '0'..='9' => accumulator.push(next_char),
             '.' => {
@@ -71,11 +70,10 @@ fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> Result<Token, &'stati
     }
 }
 
-fn parse_identifier(chars: &mut iter::Peekable<str::Chars>) -> Token {
+fn parse_identifier(chars: &mut iter::Peekable<str::Chars>) -> Result<Token, &'static str> {
     let mut accumulator= String::new();
 
     while let Some(next_char)= chars.next() {
-        println!("Next char: {}", next_char);
         match next_char {
             'a'..='z' | 'A'..='Z' | '_' => accumulator.push(next_char),
             _ => {
@@ -84,31 +82,46 @@ fn parse_identifier(chars: &mut iter::Peekable<str::Chars>) -> Token {
             }
         }
     }
-    Token::Identifier(String::from(accumulator))
+
+    Ok(Token::Identifier(accumulator))
+}
+
+fn parse_string(chars: &mut iter::Peekable<str::Chars>) -> Result<Token, &'static str> {
+    chars.next(); // consume the quotation mark that initiated this parse
+    let mut accumulator= String::new();
+
+    while let Some(next_char)= chars.next() {
+        match next_char {
+            '"' => return Ok(Token::String(accumulator)),
+            _ => accumulator.push(next_char),
+        }
+    }
+
+    Err("Hit end of file while reading string, expected closing quotation mark.")
 }
 
 pub fn string_to_tokens(contents: &str) -> Result<Vec<Token>, &'static str> {
     let mut chars= contents.chars().peekable();
     let mut tokens= Vec::new();
 
+    macro_rules! run_parser {
+        ($function:ident) => {
+            {
+                let mut iter_clone= chars.clone();
+                let token= $function(&mut iter_clone)?;
+                chars.clone_from(&iter_clone);
+
+                Some(token)
+            }
+        }
+    }
+
     while let Some(next_char)= chars.peek() {
-        println!("Next char: {}", next_char);
         // Based on the next character, match the next token, ignoring any whitespace.
         let next_token= match next_char {
-            '0'..='9' => {
-                let mut chars_clone= chars.clone();
-                let token= parse_number(&mut chars_clone)?;
-                chars.clone_from(&chars_clone);
-
-                Some(token)
-            },
-            'a'..='z' | 'A'..='Z' => {
-                let mut chars_clone= chars.clone();
-                let token= parse_identifier(&mut chars_clone);
-                chars.clone_from(&chars_clone);
-
-                Some(token)
-            },
+            '0'..='9' => run_parser!(parse_number),
+            'a'..='z' | 'A'..='Z' => run_parser!(parse_identifier),
+            '"' => run_parser!(parse_string),
             _ => {
                 let token= if let Some(symbol)= Symbol::from_char(*next_char) {
                     Some(Token::Punctuation(symbol))
@@ -117,6 +130,7 @@ pub fn string_to_tokens(contents: &str) -> Result<Vec<Token>, &'static str> {
                     None
                 } else {
                     // Hit an unexpected symbol. Fail the parsing.
+                    println!("Found unexpected character {} while reading block definition", next_char);
                     return Err("Hit unexpected character while parsing block definition");
                 };
 

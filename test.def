@@ -1,8 +1,10 @@
 {
     header: {
-        f: 0.0,
+        name: "Test Definition"
     },
     data: {
         x: 0,
+        f: 0.0,
+        point: [0, 1, 2],
     }
 }
