@@ -1,4 +1,4 @@
-use schema::Schematize;
+use schema_macros::Schematize;
 use schema_types::DynamicArray;
 
 use std::collections;

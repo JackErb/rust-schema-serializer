@@ -1,6 +1,5 @@
 use std::iter;
 use std::str;
-use std::fmt;
 use super::ParseResult;
 
 #[derive(PartialEq)]

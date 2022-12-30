@@ -34,7 +34,7 @@ fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
     let tokens= tokens::string_to_tokens(contents)?;
     let schema_value= schema::tokens_to_schema_value(&tokens)?;
 
-    let mut definition= BlockDefinition {
+    let definition= BlockDefinition {
         block_handle: block::allocate_block_handle(),
         phantom: marker::PhantomData,
     };

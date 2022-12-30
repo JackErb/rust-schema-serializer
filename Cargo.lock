@@ -24,11 +24,11 @@ dependencies = [
 name = "rust_schema"
 version = "0.1.0"
 dependencies = [
- "schema",
+ "schema_macros",
 ]
 
 [[package]]
-name = "schema"
+name = "schema_macros"
 version = "0.1.0"
 dependencies = [
  "proc-macro2",

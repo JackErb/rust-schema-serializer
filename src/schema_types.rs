@@ -47,7 +47,7 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
 
                 // TODO: This is a memory leak
                 unsafe {
-                    let mut ptr= std::alloc::alloc(layout) as *mut T;
+                    let ptr= std::alloc::alloc(layout) as *mut T;
                     for index in 0..vec.len() {
                         *ptr.add(index)= T::deserialize(&vec[index]);
                     }
@@ -67,11 +67,11 @@ impl<T: fmt::Debug> fmt::Debug for DynamicArray<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.as_slice() {
             Some(slice) => {
-                write!(f, "[");
+                write!(f, "[")?;
                 for index in 0..slice.len() {
-                    write!(f, "{:?}", slice[index]);
+                    write!(f, "{:?}", slice[index])?;
                     if index != slice.len()-1 {
-                        write!(f, ", ");
+                        write!(f, ", ")?;
                     }
                 }
                 write!(f, "]")
