@@ -3,8 +3,9 @@ use crate::SchemaValue;
 use super::block;
 
 use std::alloc;
+use std::fmt;
 
-struct DynamicArray<T> {
+pub struct DynamicArray<T> {
     block_ptr: block::BlockPointer<T>,
     len: usize,
 }
@@ -45,16 +46,37 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
                 let layout= alloc::Layout::array::<T>(vec.len()).expect("Attempted to deserialize an array that is too large.");
 
                 // TODO: This is a memory leak
-                let ptr= unsafe {
-                    std::alloc::alloc(layout) as *mut T
-                };
+                unsafe {
+                    let mut ptr= std::alloc::alloc(layout) as *mut T;
+                    for index in 0..vec.len() {
+                        *ptr.add(index)= T::deserialize(&vec[index]);
+                    }
 
-                DynamicArray {
-                    block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
-                    len: 0,
+                    DynamicArray {
+                        block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
+                        len: vec.len(),
+                    }
                 }
             },
             _ => unimplemented!("Deserialize array hit a wrong value"),
+        }
+    }
+}
+
+impl<T: fmt::Debug> fmt::Debug for DynamicArray<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.as_slice() {
+            Some(slice) => {
+                write!(f, "[");
+                for index in 0..slice.len() {
+                    write!(f, "{:?}", slice[index]);
+                    if index != slice.len()-1 {
+                        write!(f, ", ");
+                    }
+                }
+                write!(f, "]")
+            },
+            None => write!(f, "NULL")
         }
     }
 }

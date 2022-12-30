@@ -1,4 +1,6 @@
 use schema::Schematize;
+use schema_types::DynamicArray;
+
 use std::collections;
 use std::vec::Vec;
 use std::marker::Copy;
@@ -33,6 +35,7 @@ pub enum SchemaValue<'a> {
 }
 
 pub trait Schematize {
+
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
     fn deserialize(schema_value: &SchemaValue) -> Self;
@@ -142,7 +145,8 @@ struct Data {
 #[derive(Schematize, Debug)]
 struct ParserData {
     x: i32,
-    point: [i32; 3],
+    point: DynamicArray::<DynamicArray::<i32>>,
+    variant: DataType,
 }
 
 fn serde_test() {
@@ -160,7 +164,7 @@ fn parse_test() {
     println!("{:?}", args);
     if args.len() > 1 {
         let file_path= &args[1];
-        println!("Reading block definition {}", file_path);
+        println!("Reading block definition '{}'", file_path);
         let block_definition= parser::load_definition::<ParserData>(&file_path);
 
         println!("{:?}", block_definition.unwrap().get_definition());

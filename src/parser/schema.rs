@@ -1,6 +1,7 @@
 use super::Token;
 use super::Symbol;
 use super::ParseResult;
+use super::debug;
 use crate::SchemaValue;
 
 use std::collections;
@@ -17,23 +18,6 @@ macro_rules! consume_next_token {
             return Err("Invalid token encountered.")
         }
         *$index+= 1;
-    }
-}
-
-fn debug_print_tokens(tokens: &Vec<Token>, error_index: usize) {
-    for index in 0..tokens.len() {
-        let token= &tokens[index];
-        if index == error_index {
-            print!(" ERROR< {:?} > ", token);
-        } else {
-            print!(" {:?} ", token);
-        }
-
-        match token {
-            Token::Punctuation(Symbol::Colon) => (),
-            Token::Punctuation(_) => println!(),
-            _ => (),
-        }
     }
 }
 
@@ -62,7 +46,11 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
             Token::Punctuation(Symbol::OpenCurlyBrace) => {
                 parse_object(tokens, index)
             }
-            _ => Err("Unexpected token parse value"),
+            _ => {
+                debug::print_tokens(tokens, *index);
+                println!("Found invalid token '{:?}' while parsing value.", token);
+                Err("Invalid token found while parsing value.")
+            }
             // TODO:
             // Token::String =>
         }
@@ -74,6 +62,22 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
 fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<SchemaValue<'a>> {
     let mut vector= Vec::new();
 
+    // Special case for an empty array `[]`
+    if *index < tokens.len() {
+        // peek the next character
+        match &tokens[*index] {
+            Token::Punctuation(symbol) => match symbol {
+                Symbol::CloseBrace => {
+                    // consume the close brace, and return an empty vector
+                    *index+= 1;
+                    return Ok(SchemaValue::Array(vector))
+                },
+                _ => ()
+            },
+            _ => ()
+        }
+    }
+
     while *index < tokens.len() {
         let schema_value= parse_value(tokens, index)?;
         vector.push(schema_value);
@@ -84,7 +88,7 @@ fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
             Token::Punctuation(Symbol::Comma) => (), // Read the next value...
             Token::Punctuation(Symbol::CloseBrace) => return Ok(SchemaValue::Array(vector)),
             _ => {
-                debug_print_tokens(tokens, *index);
+                debug::print_tokens(tokens, *index);
                 println!("Found invalid token '{:?}' while parsing array.", token);
                 return Err("Invalid token found while parsing array.")
             }
@@ -98,6 +102,7 @@ fn parse_object<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sc
     let mut fields_map= collections::HashMap::<&str, SchemaValue>::new();
 
     // Parse an object of format: { field_name: <value>, ...,  }
+    // NOTE: due to current implementation, commas are completely optional
     while *index < tokens.len() {
         let token= &tokens[*index];
         *index+= 1;
@@ -113,7 +118,7 @@ fn parse_object<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sc
                 return Ok(SchemaValue::Object(fields_map))
             }
             _ => {
-                debug_print_tokens(tokens, *index);
+                debug::print_tokens(tokens, *index);
                 println!("Found invalid token '{:?}' while parsing object.", token);
                 return Err("Invalid token found while parsing object.")
             }

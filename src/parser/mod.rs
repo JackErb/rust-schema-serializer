@@ -1,5 +1,6 @@
 mod tokens;
 mod schema;
+mod debug;
 
 use crate::block;
 use crate::Schematize;
@@ -38,6 +39,7 @@ fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
         phantom: marker::PhantomData,
     };
 
+    // TODO: Deserialize should return a result rather than panicking
     *definition.get_definition_mut()= T::deserialize(&schema_value);
     Ok(definition)
 

@@ -1,8 +1,9 @@
 use std::iter;
 use std::str;
+use std::fmt;
 use super::ParseResult;
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum Symbol {
     OpenCurlyBrace,   // {
     CloseCurlyBrace,  // }
@@ -10,15 +11,6 @@ pub enum Symbol {
     CloseBrace,       // ]
     Comma,            // ,
     Colon,            // :
-}
-
-#[derive(Debug, PartialEq)]
-pub enum Token {
-    Identifier(String), // A literal identifier (e.g. field name or an enum variant)
-    String(String),
-    Integer(i64),
-    Decimal(f64),
-    Punctuation(Symbol),
 }
 
 impl Symbol {
@@ -34,6 +26,16 @@ impl Symbol {
         }
     }
 }
+
+#[derive(PartialEq)]
+pub enum Token {
+    Identifier(String), // A literal identifier (e.g. field name or an enum variant)
+    String(String),
+    Integer(i64),
+    Decimal(f64),
+    Punctuation(Symbol),
+}
+
 
 fn parse_number(chars: &mut iter::Peekable<str::Chars>) -> ParseResult<Token> {
     let mut accumulator= String::new();
@@ -110,7 +112,7 @@ pub fn string_to_tokens(contents: &str) -> ParseResult<Vec<Token>> {
         let next_token= match next_char {
             '0'..='9' => Some(parse_number(&mut chars)?),
             'a'..='z' | 'A'..='Z' => Some(parse_identifier(&mut chars)?),
-            '"' => Some(parse_identifier(&mut chars)?),
+            '"' => Some(parse_string(&mut chars)?),
             _ => {
                 let token= if let Some(symbol)= Symbol::from_char(*next_char) {
                     Some(Token::Punctuation(symbol))
