@@ -1,13 +1,19 @@
 mod tokens;
+mod schema;
+
+#[macro_use]
+mod macros;
 
 use crate::block_pointer::BlockHandle;
-use crate::SchemaValue;
 use crate::Schematize;
 use tokens::Token;
+use tokens::Symbol;
 
 use std::marker::PhantomData;
 use std::fs;
 use std::str;
+
+pub type ParseResult<T>= Result<T, &'static str>;
 
 pub struct BlockDefinition<T> {
     block_handle: BlockHandle<T>, // this CANNOT be null
@@ -26,15 +32,12 @@ impl<'a, T> BlockDefinition<T> {
     }
 }
 
-fn tokens_to_schema_value(tokens: Vec<Token>) -> Result<SchemaValue, &'static str> {
-    Err("Unimplemented")
-}
-
-fn parse_definition<T: Schematize>(contents: &str) -> Result<BlockDefinition<T>, &'static str> {
+fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinition<T>> {
     let tokens= tokens::string_to_tokens(contents)?;
-    let schema_value= tokens_to_schema_value(tokens)?;
+    let schema_value= schema::tokens_to_schema_value(&tokens)?;
 
     // Calculate the block size
+    //let block_size= T::calculate_size();
     // Allocate a new block
     // Deserialize the schema_value into the block's memory
     Err("Unimplemented")

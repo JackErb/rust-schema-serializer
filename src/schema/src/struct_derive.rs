@@ -90,18 +90,17 @@ pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
     let fields_serialize= fields.iter().map(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
-            quote! (
+            quote! {
                 // Insert to the map, recurisvely calling serialize on the field.
                 //    e.g. ("x", SchemaValue::Integer(32))
                 fields_map.insert(stringify!(#field_ident), self.#field_ident.serialize());
-            )
+            }
         });
 
     quote! {
-        fn serialize(&self) -> SchemaValue
-        {
+        fn serialize(&self) -> SchemaValue {
             // Build the hash map representing this object
-            let mut fields_map= std::collections::HashMap::<&'static str, SchemaValue>::new();
+            let mut fields_map= std::collections::HashMap::<&str, SchemaValue>::new();
             #(#fields_serialize)*
 
             SchemaValue::Object(fields_map)
@@ -124,10 +123,8 @@ pub fn derive_deserialize_fn(
         });
 
     quote! {
-        fn deserialize(schema_value: &SchemaValue) -> #item_ident
-        {
-            match schema_value
-            {
+        fn deserialize(schema_value: &SchemaValue) -> #item_ident {
+            match schema_value {
                 SchemaValue::Object(fields_map) => #item_ident { #(#fields_deserialize),* },
                 _ => unimplemented!("Deserialize object hit a wrong value {:?}", schema_value),
             }

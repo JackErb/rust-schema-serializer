@@ -1,6 +1,6 @@
 {
     header: {
-        name: "Test Definition"
+        y: 1
     },
     data: {
         x: 0,

@@ -1,5 +1,5 @@
 use schema::Schematize;
-use std::collections::HashMap;
+use std::collections;
 use std::vec::Vec;
 use std::marker::Copy;
 use std::env;
@@ -8,14 +8,21 @@ pub mod block_pointer;
 mod schema_types;
 mod parser;
 
+/*
+struct ObjectData {
+    collections: collections::HashMap<&'static str, SchemaValue>,
+    offsets: collections::HashMap<&'static str, usize>, // contains offsets of dynamic fields
+}
+*/
+
 #[derive(Debug)]
-pub enum SchemaValue {
-    Object(HashMap<&'static str, SchemaValue>), // a hash map of the schematized fields in this struct
-    Integer32(i32),
-    Float32(f32),
+pub enum SchemaValue<'a> {
+    Object(collections::HashMap<&'a str, SchemaValue<'a>>), // represents a schematized struct
+    Integer(i64),
+    Decimal(f64),
     Bool(bool),
-    Array(Vec<SchemaValue>), // dynamically sized array, this is also used to represent static arrays
-    EnumVariant(&'static str), // todo: support fields with an optional object attached
+    Array(Vec<SchemaValue<'a>>), // dynamically sized array, this is also used to represent static arrays
+    EnumVariant(&'a str), // todo: support fields with an optional object attached
     Null,
     // TODO:
     //   String
@@ -29,18 +36,25 @@ pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
     fn deserialize(schema_value: &SchemaValue) -> Self;
+
+    //fn build_layout(schema_value: &SchemaValue) -> (std::Layout, )
 }
 
 impl Schematize for i32 {
     fn schema_default() -> i32 { 0 }
 
     fn serialize(&self) -> SchemaValue {
-        SchemaValue::Integer32(*self)
+        SchemaValue::Integer(*self as i64)
     }
 
     fn deserialize(schema_value: &SchemaValue) -> i32 {
         match schema_value {
-            SchemaValue::Integer32(schema_num) => *schema_num,
+            SchemaValue::Integer(num) => {
+                if *num < i32::MIN as i64 || *num > i32::MAX as i64 {
+                    unimplemented!("Deserialize i32 hit a value that is out of bounds {:?}", schema_value);
+                }
+                *num as i32
+            }
             _ => unimplemented!("Deserialize i32 hit a wrong value {:?}", schema_value)
         }
     }
@@ -50,12 +64,15 @@ impl Schematize for f32 {
     fn schema_default() -> f32 { 0.0 }
 
     fn serialize(&self) -> SchemaValue {
-        SchemaValue::Float32(*self)
+        SchemaValue::Decimal(*self as f64)
     }
 
     fn deserialize(schema_value: &SchemaValue) -> f32 {
         match schema_value {
-            SchemaValue::Float32(schema_num) => *schema_num,
+            SchemaValue::Decimal(schema_num) =>  {
+                // Note that this is downcasting... should we do any bounds checks?
+                *schema_num as f32
+            }
             _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
         }
     }
