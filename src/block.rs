@@ -4,6 +4,7 @@ use std::alloc;
 
 // Refers to an allocated block of memory
 // This is allocated on the heap. But in the future it may refer to an index in datum arrays.
+// The entire block contains a schematized definition, as well as any dynamic memory it's using.
 pub struct BlockHandle<T> {
     ptr: *mut T,
     phantom: marker::PhantomData<T>,
@@ -36,6 +37,9 @@ pub fn allocate_block_handle<T>() -> BlockHandle<T> {
     }
 }
 
+// A pointer to an item within the block handle.
+// `offset` MUST be properly aligned, std::alloc::Layout should be used when allocating the
+// block to make this guarantee.
 pub struct BlockPointer<T> {
     handle: BlockHandle<T>,
     offset: u16,
@@ -68,7 +72,7 @@ impl<T> BlockPointer<T> {
         }
     }
 
-    // THIS IS DANGEROUS, it ideally shouldn't be public
+    // TODO: shouldn't need this once I stop allocating on the heap.
     pub fn from_raw_parts(ptr: *mut T, offset: u16) -> BlockPointer<T> {
         BlockPointer {
             handle: BlockHandle {
