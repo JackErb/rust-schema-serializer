@@ -1,9 +1,11 @@
 use crate::Schematize;
 use crate::SchemaValue;
-use crate::block_pointer::BlockPointer;
+use super::block;
+
+use std::alloc;
 
 struct DynamicArray<T> {
-    block_ptr: BlockPointer<T>,
+    block_ptr: block::BlockPointer<T>,
     len: usize,
 }
 
@@ -22,7 +24,7 @@ impl<'a, T> DynamicArray<T> {
 impl<T: Schematize> Schematize for DynamicArray<T> {
     fn schema_default() -> DynamicArray<T> {
         DynamicArray {
-            block_ptr: BlockPointer::null(),
+            block_ptr: block::BlockPointer::null(),
             len: 0,
         }
     }
@@ -40,7 +42,7 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
         // passed into deserialize
         match schema_value {
             SchemaValue::Array(vec) => {
-                let layout= std::alloc::Layout::array::<T>(vec.len()).expect("Attempted to deserialize an array that is too large.");
+                let layout= alloc::Layout::array::<T>(vec.len()).expect("Attempted to deserialize an array that is too large.");
 
                 // TODO: This is a memory leak
                 let ptr= unsafe {
@@ -48,7 +50,7 @@ impl<T: Schematize> Schematize for DynamicArray<T> {
                 };
 
                 DynamicArray {
-                    block_ptr: BlockPointer::from_raw_parts(ptr, 0),
+                    block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
                     len: 0,
                 }
             },

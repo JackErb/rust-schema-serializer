@@ -4,7 +4,7 @@ use std::vec::Vec;
 use std::marker::Copy;
 use std::env;
 
-pub mod block_pointer;
+pub mod block;
 mod schema_types;
 mod parser;
 
@@ -142,6 +142,7 @@ struct Data {
 #[derive(Schematize, Debug)]
 struct ParserData {
     x: i32,
+    point: [i32; 3],
 }
 
 fn serde_test() {
@@ -161,6 +162,8 @@ fn parse_test() {
         let file_path= &args[1];
         println!("Reading block definition {}", file_path);
         let block_definition= parser::load_definition::<ParserData>(&file_path);
+
+        println!("{:?}", block_definition.unwrap().get_definition());
     } else {
 
     }

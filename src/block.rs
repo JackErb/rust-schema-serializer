@@ -1,5 +1,6 @@
 use std::marker;
 use std::ptr;
+use std::alloc;
 
 // Refers to an allocated block of memory
 // This is allocated on the heap. But in the future it may refer to an index in datum arrays.
@@ -22,14 +23,18 @@ impl<T> BlockHandle<T> {
     }
 }
 
-/*
-fn allocate_block_handle<T>(size: usize) -> BlockHandle<T> {
+pub fn allocate_block_handle<T>() -> BlockHandle<T> {
     // TODO: this is a memory leak
+    let layout= alloc::Layout::new::<T>();
     let ptr= unsafe {
         std::alloc::alloc(layout) as *mut T
     };
+
+    BlockHandle {
+        ptr: ptr,
+        phantom: marker::PhantomData
+    }
 }
-*/
 
 pub struct BlockPointer<T> {
     handle: BlockHandle<T>,
