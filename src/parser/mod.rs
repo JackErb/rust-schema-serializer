@@ -1,9 +1,6 @@
 mod tokens;
 mod schema;
 
-#[macro_use]
-mod macros;
-
 use crate::block_pointer::BlockHandle;
 use crate::Schematize;
 use tokens::Token;

@@ -1,7 +1,6 @@
 use std::iter;
 use std::str;
 use super::ParseResult;
-use crate::run_parser;
 
 #[derive(Debug, PartialEq)]
 pub enum Symbol {
@@ -106,12 +105,25 @@ pub fn string_to_tokens(contents: &str) -> ParseResult<Vec<Token>> {
     let mut chars= contents.chars().peekable();
     let mut tokens= Vec::new();
 
+    macro_rules! run_parser {
+        ($function:ident) => {
+            {
+                let mut iter_clone= chars.clone();
+                let token= $function(&mut iter_clone)?;
+                chars.clone_from(&iter_clone);
+
+                Some(token)
+            }
+        }
+    }
+
+
     while let Some(next_char)= chars.peek() {
         // Based on the next character, match the next token, ignoring any whitespace.
         let next_token= match next_char {
-            '0'..='9' => run_parser!(chars, parse_number),
-            'a'..='z' | 'A'..='Z' => run_parser!(chars, parse_identifier),
-            '"' => run_parser!(chars, parse_string),
+            '0'..='9' => run_parser!(parse_number),
+            'a'..='z' | 'A'..='Z' => run_parser!(parse_identifier),
+            '"' => run_parser!(parse_string),
             _ => {
                 let token= if let Some(symbol)= Symbol::from_char(*next_char) {
                     Some(Token::Punctuation(symbol))
