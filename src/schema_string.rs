@@ -1,14 +1,11 @@
-use crate::block;
-use crate::Schematize;
-use crate::SchemaValue;
-use crate::SchemaArray;
+use crate::*;
 
 use std::alloc;
 use std::str;
 use std::fmt;
 
 pub struct SchemaString {
-    array: SchemaArray<u8>,
+    array: SchemaArray<u8>, // Byte array of string memory
 }
 
 impl<'a> SchemaString {
@@ -41,7 +38,7 @@ impl Schematize for SchemaString {
         }
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> SchemaString {
+    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<SchemaString> {
         match schema_value {
             SchemaValue::String(schema_str) => {
                 // TODO: This is a memory leak
@@ -50,7 +47,7 @@ impl Schematize for SchemaString {
                     let layout= alloc::Layout::for_value(bytes);
 
                     // Allocate the new pointer on the heap
-                    let raw_ptr= std::alloc::alloc(layout) as *mut u8;
+                    let raw_ptr= alloc::alloc(layout) as *mut u8;
 
                     // Write the string bytes to the block pointer
                     for index in 0..bytes.len() {
@@ -59,13 +56,14 @@ impl Schematize for SchemaString {
 
                     let block_ptr= block::BlockPointer::from_raw_parts(raw_ptr, 0);
 
-                    SchemaString {
+                    Ok(SchemaString {
                         array: SchemaArray::from_raw_parts(block_ptr, bytes.len()),
-                    }
+                    })
                 }
             },
             _ => {
-                unimplemented!("Deserialize schema string hit a wrong value {:?}", schema_value);
+                println!("Deserialize schema string hit a wrong value {:?}", schema_value);
+                return Err(SchemaError::WrongSchemaValue);
             }
         }
     }

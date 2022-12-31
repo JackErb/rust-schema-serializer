@@ -19,8 +19,7 @@ macro_rules! cast {
     };
 }
 
-fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream
-{
+fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream {
     match field_type
     {
         syn::Type::Array(array) => {
@@ -43,6 +42,7 @@ pub fn derive_default_fn(
     fields: &StructFields) -> proc_macro2::TokenStream {
 
     // Generate the token stream for initializing the default struct
+    //  e.g. x: 0, y: 0.0, points: [0,0,0]
     let fields_init_default= fields.iter().map(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
@@ -57,7 +57,7 @@ pub fn derive_default_fn(
     //           i32 x;
     // the statement `x=32` is inlined into the schema_default function.
     // this allows more complex statements:
-    //  e.g.    #[schema_default(inner.x=32)]
+    //  e.g.    #[schema_default(inner.points[0]=32)]
     //          InnerStruct inner;
     let fields_schema_default=
         fields.iter().map(|field|
@@ -112,21 +112,49 @@ pub fn derive_deserialize_fn(
     item_ident: &syn::Ident,
     fields: &StructFields) -> proc_macro2::TokenStream {
 
+    let fields_count= fields.len();
+
+    let fields_validity_check= fields.iter().map(
+        |field| -> proc_macro2::TokenStream {
+            let field_ident= &field.ident;
+            quote! {
+                if !fields_map.contains_key(stringify!(#field_ident)) {
+                    println!("Deserialize object {} is missing field: {:?}", stringify!(#item_ident), stringify!(#field_ident));
+                    return Err(SchemaError::MissingField);
+                }
+            }
+        }
+    );
+
     let fields_deserialize= fields.iter().map(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
             let field_type= &field.ty;
             quote! {
-                // Deserialize the field given the schema value from the object's schema
-                #field_ident: <#field_type>::deserialize(&fields_map[stringify!(#field_ident)])
+                // Deserialize the field given the schema value
+                #field_ident: <#field_type>::deserialize(&fields_map[stringify!(#field_ident)])?
             }
         });
 
     quote! {
-        fn deserialize(schema_value: &SchemaValue) -> #item_ident {
+        fn deserialize(schema_value: &SchemaValue) -> SchemaResult<#item_ident> {
             match schema_value {
-                SchemaValue::Object(fields_map) => #item_ident { #(#fields_deserialize),* },
-                _ => unimplemented!("Deserialize object hit a wrong value {:?}", schema_value),
+                SchemaValue::Object(fields_map) => {
+                    // Perform validity checks on the map
+                    #(#fields_validity_check)*
+
+                    if fields_map.len() != #fields_count {
+                        println!("Deserialize object {} contains extraneous unknown field(s).", stringify!(#item_ident));
+                        return Err(SchemaError::UnknownIdentifier);
+                    }
+
+                    // Create the deserialized object with all of its deserialized fields
+                    Ok(#item_ident { #(#fields_deserialize),* })
+                },
+                _ => {
+                    println!("Deserialize object {} hit a wrong value {:?}", stringify!(#item_ident), schema_value);
+                    return Err(SchemaError::WrongSchemaValue);
+                }
             }
         }
     }

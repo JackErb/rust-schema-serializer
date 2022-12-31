@@ -48,7 +48,7 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
                 parse_object(tokens, index)
             }
             _ => {
-                debug::print_tokens(tokens, *index);
+                debug::print_tokens(tokens, *index-1);
                 println!("Found invalid token '{:?}' while parsing value.", token);
                 Err("Invalid token found while parsing value.")
             }
@@ -90,7 +90,7 @@ fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
             Token::Punctuation(Symbol::Comma) => (), // Read the next value...
             Token::Punctuation(Symbol::CloseBrace) => return Ok(SchemaValue::Array(vector)),
             _ => {
-                debug::print_tokens(tokens, *index);
+                debug::print_tokens(tokens, *index-1);
                 println!("Found invalid token '{:?}' while parsing array.", token);
                 return Err("Invalid token found while parsing array.")
             }
@@ -120,7 +120,7 @@ fn parse_object<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sc
                 return Ok(SchemaValue::Object(fields_map))
             }
             _ => {
-                debug::print_tokens(tokens, *index);
+                debug::print_tokens(tokens, *index-1);
                 println!("Found invalid token '{:?}' while parsing object.", token);
                 return Err("Invalid token found while parsing object.")
             }

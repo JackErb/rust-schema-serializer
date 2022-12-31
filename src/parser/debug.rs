@@ -7,7 +7,7 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Token::Identifier(str) => write!(f, "{}", str),
-            Token::String(str) => write!(f, "{}", str),
+            Token::String(str) => write!(f, "\"{}\"", str),
             Token::Integer(num) => write!(f, "{}", num),
             Token::Decimal(num) => write!(f, "{}", num),
             Token::Punctuation(symbol) => write!(f, "{:?}", symbol),
@@ -38,8 +38,7 @@ fn print_newline(tabs: i32) {
     }
 }
 
-pub fn print_tokens(tokens: &Vec<Token>, mut error_index: usize) {
-    error_index-= 1;
+pub fn print_tokens(tokens: &Vec<Token>, error_index: usize) {
     let mut tabs= 0;
 
     println!("Parsing of schema failed:");

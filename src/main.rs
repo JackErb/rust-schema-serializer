@@ -11,6 +11,7 @@ pub use schema_string::SchemaString;
 use std::collections;
 use std::vec::Vec;
 use std::env;
+use std::iter;
 
 /*
 struct ObjectData {
@@ -25,10 +26,10 @@ pub enum SchemaValue<'a> {
     Integer(i64),
     Decimal(f64),
     Bool(bool),
-    Array(Vec<SchemaValue<'a>>), // dynamically sized array, this is also used to represent static arrays
-    String(&'a str),
+    Array(Vec<SchemaValue<'a>>), // array of arbitrary size
+    String(&'a str),             // string of arbitrary size
     EnumVariant(&'a str), // todo: support fields with an optional object attached
-    Null,
+    Null, // this is currently unused but could be useful to generate a valid schema rep of an object?
     // TODO:
     //   String
     //   Impl (schema owner pointer/mix in pattern)
@@ -37,13 +38,28 @@ pub enum SchemaValue<'a> {
     //     - we have the schema array type, but need to support serializing into a dynamic sized array
 }
 
-pub trait Schematize {
+#[derive(Debug)]
+pub enum SchemaError {
+    WrongSchemaValue,
+    MissingField,
+    WrongSizedArray,
+    NumberOutOfBounds,
+    UnknownField,
+    UnknownIdentifier,
+}
 
+type SchemaResult<T>= Result<T, SchemaError>;
+
+pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
-    fn deserialize(schema_value: &SchemaValue) -> Self;
 
-    //fn build_layout(schema_value: &SchemaValue) -> (std::Layout, )
+    // In order to deserialize, you must first build the layout to allocate the memory.
+    // These two functions must traverse their fields in the same way.
+    /*fn build_layout(
+        schema_value: &SchemaValue,
+        offsets: &mut Vector<usize>) -> Result<alloc::Layout, alloc::LayoutError>*/
+    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<Self> where Self: Sized;
 }
 
 #[derive(Schematize, Debug)]
@@ -72,7 +88,7 @@ struct Data {
 #[derive(Schematize, Debug)]
 struct ParserData {
     x: i32,
-    point: SchemaArray::<SchemaArray::<i32>>,
+    point: SchemaArray::<SchemaArray::<SchemaString>>,
     str: SchemaString,
     data: InnerData,
 }
@@ -89,19 +105,19 @@ fn serde_test() {
 
 fn parse_test() {
     let args: Vec<String>= env::args().collect();
-    println!("{:?}", args);
     if args.len() > 1 {
         let file_path= &args[1];
         println!("Reading block definition '{}'", file_path);
         let block_definition= parser::load_definition::<ParserData>(&file_path);
 
-        println!("{:?}", block_definition.unwrap().get_definition());
-    } else {
-
+        match block_definition {
+            Some(definition) => println!("Loaded definition: {:?}", definition.get_definition()),
+            None => ()
+        }
     }
 }
 
 fn main() {
-    //serde_test();
+    serde_test();
     parse_test();
 }

@@ -2,53 +2,39 @@
     Schematize implementations for primitive types
 */
 
-use crate::SchemaValue;
-use crate::Schematize;
+use crate::*;
 
-macro_rules! schematize_int {
-    ($type: ty) => {
+macro_rules! schematize_num {
+    ($type: ty, $cast_type: ty, $default_value: expr, $($schema_value:tt)*) => {
         impl Schematize for $type {
-            fn schema_default() -> $type { 0 }
+            fn schema_default() -> $type { $default_value }
 
             fn serialize(&self) -> SchemaValue {
-                SchemaValue::Integer(*self as i64)
+                $($schema_value)*(*self as $cast_type)
             }
 
-            fn deserialize(schema_value: &SchemaValue) -> $type {
+            fn deserialize(schema_value: &SchemaValue) -> SchemaResult<$type> {
                 match schema_value {
-                    SchemaValue::Integer(num) => {
-                        if *num < <$type>::MIN as i64 || *num > <$type>::MAX as i64 {
-                            unimplemented!("Deserialize i32 hit a value that is out of bounds {:?}", schema_value);
+                    $($schema_value)*(num) => {
+                        if *num < <$type>::MIN as $cast_type || *num > <$type>::MAX as $cast_type {
+                            println!("Deserialize {} hit a value that is out of bounds {:?}", stringify!($type), schema_value);
+                            return Err(SchemaError::NumberOutOfBounds);
                         }
-                        *num as $type
+                        Ok(*num as $type)
                     }
-                    _ => unimplemented!("Deserialize {} hit a wrong value {:?}", stringify!($type), schema_value)
+                    _ => {
+                        println!("Deserialize {} hit a wrong value {:?}", stringify!($type), schema_value);
+                        return Err(SchemaError::WrongSchemaValue);
+                    }
                 }
             }
         }
     }
 }
 
-schematize_int!(u8);
-schematize_int!(i32);
-
-impl Schematize for f32 {
-    fn schema_default() -> f32 { 0.0 }
-
-    fn serialize(&self) -> SchemaValue {
-        SchemaValue::Decimal(*self as f64)
-    }
-
-    fn deserialize(schema_value: &SchemaValue) -> f32 {
-        match schema_value {
-            SchemaValue::Decimal(schema_num) =>  {
-                // Note that this is downcasting... should we do any bounds checks?
-                *schema_num as f32
-            }
-            _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
-        }
-    }
-}
+schematize_num!(u8,  i64, 0,   SchemaValue::Integer);
+schematize_num!(i32, i64, 0,   SchemaValue::Integer);
+schematize_num!(f32, f64, 0.0, SchemaValue::Decimal);
 
 impl Schematize for bool {
     fn schema_default() -> bool { false }
@@ -57,33 +43,46 @@ impl Schematize for bool {
         SchemaValue::Bool(*self)
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> bool {
+    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<bool> {
         match schema_value {
-            SchemaValue::Bool(schema_bool) => *schema_bool,
-            _ => unimplemented!("Deserialize bool hit a wrong value {:?}", schema_value)
+            SchemaValue::Bool(schema_bool) => Ok(*schema_bool),
+            _ => {
+                println!("Deserialize bool hit a wrong value {:?}", schema_value);
+                return Err(SchemaError::WrongSchemaValue);
+            }
         }
     }
 }
 
 impl<T: Schematize + Copy, const N: usize> Schematize for [T; N] {
-    fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
+    fn schema_default() -> [T; N] {
+        [T::schema_default(); N]
+    }
 
     fn serialize(&self) -> SchemaValue {
         let vector= self.iter().map(|item| item.serialize()).collect();
         SchemaValue::Array(vector)
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> [T; N] {
+    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<[T; N]> {
         match schema_value {
             SchemaValue::Array(schema_vector) => {
-                assert!(schema_vector.len() == N, "Deserialize hit an array of the wrong size.");
+                if schema_vector.len() != N {
+                    println!("Deserialize static array hit an array of the wrong size.\
+                        Found {}, expected: {}", schema_vector.len(), N);
+                    return Err(SchemaError::WrongSizedArray);
+                }
+
                 let mut array: [T; N]= [T::schema_default(); N];
                 for (index, item) in schema_vector.iter().enumerate() {
-                    array[index]= T::deserialize(item);
+                    array[index]= T::deserialize(item)?;
                 }
-                array
+                Ok(array)
             },
-            _ => unimplemented!("Deserialize array hit a wrong value {:?}", schema_value)
+            _ => {
+                println!("Deserialize static array hit a wrong value {:?}", schema_value);
+                return Err(SchemaError::WrongSchemaValue);
+            }
         }
     }
 }

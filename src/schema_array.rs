@@ -1,5 +1,4 @@
-use crate::Schematize;
-use crate::SchemaValue;
+use crate::*;
 use super::block;
 
 use std::alloc;
@@ -50,7 +49,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
         SchemaValue::Array(vec)
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> SchemaArray<T> {
+    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<SchemaArray<T>> {
         // TODO: this shouldn't be allocated on the heap, instead a block allocator should be
         // passed into deserialize
         match schema_value {
@@ -61,16 +60,19 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                 unsafe {
                     let ptr= std::alloc::alloc(layout) as *mut T;
                     for index in 0..vec.len() {
-                        *ptr.add(index)= T::deserialize(&vec[index]);
+                        *ptr.add(index)= T::deserialize(&vec[index])?;
                     }
 
-                    SchemaArray {
+                    Ok(SchemaArray {
                         block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
                         len: vec.len(),
-                    }
+                    })
                 }
             },
-            _ => unimplemented!("Deserialize array hit a wrong value"),
+            _ => {
+                println!("Deserialize schema array hit a wrong value {:?}", schema_value);
+                return Err(SchemaError::WrongSchemaValue);
+            }
         }
     }
 }

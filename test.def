@@ -1,7 +1,7 @@
 {
     x: 0,
-    point: [[3, 2, 4], [], [0, 1], [1]],
-    str: "Hello, World", 
+    point: [["Test", "Hello world", "4"], [], ["Jack", "Erb"], ["Libby"]],
+    str: "Hello, World",
     data: {
         flag: true,
         type_enum: Secondary,

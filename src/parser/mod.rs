@@ -30,7 +30,7 @@ impl<'a, T> BlockDefinition<T> {
     }
 }
 
-fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinition<T>> {
+fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinition<T>> {
     let tokens= tokens::string_to_tokens(contents)?;
     let schema_value= schema::tokens_to_schema_value(&tokens)?;
 
@@ -39,8 +39,15 @@ fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
         phantom: marker::PhantomData,
     };
 
-    // TODO: Deserialize should return a result rather than panicking
-    *definition.get_definition_mut()= T::deserialize(&schema_value);
+    // Deserialize the definition
+    *definition.get_definition_mut()= match T::deserialize(&schema_value) {
+        Ok(definition) => definition,
+        Err(e) => {
+            println!("SchemaError::{:?}", e);
+            return Err("Failed to deserialize schema definition.");
+        }
+    };
+
     Ok(definition)
 
     // Calculate the block size
@@ -50,18 +57,21 @@ fn parse_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
 }
 
 pub fn load_definition<T: Schematize>(file_path: &str) -> Option<BlockDefinition<T>> {
+    // TODO: We should have a caching system so if a definition is requested multiple times,
+    // it can reuse the existing memory.
+
     let file_contents= fs::read_to_string(file_path);
     match file_contents {
         Ok(file_contents) =>
-            match parse_definition(&file_contents) {
+            match build_definition(&file_contents) {
                 Ok(definition) => Some(definition),
                 Err(err) => {
-                    println!("Failed to load definition (path: {}).\n Error: {}", file_path, err);
+                    println!("Failed to load definition '{}'.\n Error: {}", file_path, err);
                     None
                 }
             }
         Err(err) => {
-            println!("Failed to read file contents (path: {}).\n Error: {}", file_path, err);
+            println!("Failed to read file contents '{}'.\n Error: {}", file_path, err);
             None
         }
     }

@@ -56,15 +56,22 @@ pub fn derive_deserialize_fn(
         });
 
     quote! {
-        fn deserialize(schema_value: &SchemaValue) -> #enum_ident {
-            match schema_value {
+        fn deserialize(schema_value: &SchemaValue) -> SchemaResult<#enum_ident> {
+            Ok(match schema_value {
                 SchemaValue::EnumVariant(field_name) =>
                     match *field_name{
                         #(#variants_deserialize)*
-                        _ => unimplemented!("Deserialize enum hit an unrecognized variant {}", field_name)
+                        _ => {
+                            println!("Deserialize enum hit an unexpected identifier: {}.", field_name);
+                            println!("Could this be incorrectly spelled or removed from the new schema?");
+                            return Err(SchemaError::UnknownIdentifier);
+                        }
                     },
-                _ => unimplemented!("Deserialize enum hit a wrong value {:?}", schema_value)
-            }
+                _ => {
+                    println!("Deserialize enum {} hit a wrong value {:?}", stringify!(#enum_ident), schema_value);
+                    return Err(SchemaError::WrongSchemaValue);
+                }
+            })
         }
     }
 }
