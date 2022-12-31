@@ -1,124 +1,89 @@
-use crate::Schematize;
+/*
+    Schematize implementations for primitive types
+*/
+
 use crate::SchemaValue;
-use super::block;
+use crate::Schematize;
 
-use std::alloc;
-use std::fmt;
+macro_rules! schematize_int {
+    ($type: ty) => {
+        impl Schematize for $type {
+            fn schema_default() -> $type { 0 }
 
-pub struct DynamicArray<T> {
-    block_ptr: block::BlockPointer<T>,
-    len: usize,
-}
+            fn serialize(&self) -> SchemaValue {
+                SchemaValue::Integer(*self as i64)
+            }
 
-impl<'a, T> DynamicArray<T> {
-    pub fn as_slice(&self) -> Option<&'a [T]> {
-        if self.block_ptr.is_null() {
-            None
-        } else {
-            Some(unsafe {
-                std::slice::from_raw_parts(self.block_ptr.get_pointer(), self.len)
-            })
+            fn deserialize(schema_value: &SchemaValue) -> $type {
+                match schema_value {
+                    SchemaValue::Integer(num) => {
+                        if *num < <$type>::MIN as i64 || *num > <$type>::MAX as i64 {
+                            unimplemented!("Deserialize i32 hit a value that is out of bounds {:?}", schema_value);
+                        }
+                        *num as $type
+                    }
+                    _ => unimplemented!("Deserialize {} hit a wrong value {:?}", stringify!($type), schema_value)
+                }
+            }
         }
     }
 }
 
-impl<T: Schematize> Schematize for DynamicArray<T> {
-    fn schema_default() -> DynamicArray<T> {
-        DynamicArray {
-            block_ptr: block::BlockPointer::null(),
-            len: 0,
-        }
-    }
+schematize_int!(u8);
+schematize_int!(i32);
+
+impl Schematize for f32 {
+    fn schema_default() -> f32 { 0.0 }
 
     fn serialize(&self) -> SchemaValue {
-        let vec: Vec<SchemaValue>= match self.as_slice() {
-            Some(slice) => slice.iter().map(|element| element.serialize()).collect(),
-            None => Vec::new()
-        };
-        SchemaValue::Array(vec)
+        SchemaValue::Decimal(*self as f64)
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> DynamicArray<T> {
-        // TODO: this shouldn't be allocated on the heap, instead a block allocator should be
-        // passed into deserialize
+    fn deserialize(schema_value: &SchemaValue) -> f32 {
         match schema_value {
-            SchemaValue::Array(vec) => {
-                let layout= alloc::Layout::array::<T>(vec.len()).expect("Attempted to deserialize an array that is too large.");
+            SchemaValue::Decimal(schema_num) =>  {
+                // Note that this is downcasting... should we do any bounds checks?
+                *schema_num as f32
+            }
+            _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
+        }
+    }
+}
 
-                // TODO: This is a memory leak
-                unsafe {
-                    let ptr= std::alloc::alloc(layout) as *mut T;
-                    for index in 0..vec.len() {
-                        *ptr.add(index)= T::deserialize(&vec[index]);
-                    }
+impl Schematize for bool {
+    fn schema_default() -> bool { false }
 
-                    DynamicArray {
-                        block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
-                        len: vec.len(),
-                    }
+    fn serialize(&self) -> SchemaValue {
+        SchemaValue::Bool(*self)
+    }
+
+    fn deserialize(schema_value: &SchemaValue) -> bool {
+        match schema_value {
+            SchemaValue::Bool(schema_bool) => *schema_bool,
+            _ => unimplemented!("Deserialize bool hit a wrong value {:?}", schema_value)
+        }
+    }
+}
+
+impl<T: Schematize + Copy, const N: usize> Schematize for [T; N] {
+    fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
+
+    fn serialize(&self) -> SchemaValue {
+        let vector= self.iter().map(|item| item.serialize()).collect();
+        SchemaValue::Array(vector)
+    }
+
+    fn deserialize(schema_value: &SchemaValue) -> [T; N] {
+        match schema_value {
+            SchemaValue::Array(schema_vector) => {
+                assert!(schema_vector.len() == N, "Deserialize hit an array of the wrong size.");
+                let mut array: [T; N]= [T::schema_default(); N];
+                for (index, item) in schema_vector.iter().enumerate() {
+                    array[index]= T::deserialize(item);
                 }
+                array
             },
-            _ => unimplemented!("Deserialize array hit a wrong value"),
+            _ => unimplemented!("Deserialize array hit a wrong value {:?}", schema_value)
         }
     }
 }
-
-impl<T: fmt::Debug> fmt::Debug for DynamicArray<T> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self.as_slice() {
-            Some(slice) => {
-                write!(f, "[")?;
-                for index in 0..slice.len() {
-                    write!(f, "{:?}", slice[index])?;
-                    if index != slice.len()-1 {
-                        write!(f, ", ")?;
-                    }
-                }
-                write!(f, "]")
-            },
-            None => write!(f, "NULL")
-        }
-    }
-}
-
-/*
-This should probably be redone to make use of a global string hash table.
-The SchemaString would be a wrapper around a hash value that is used to index into the table.
-  Pros:
-    - Doesn't duplicate strings in memory
-    - Easier to create runtime debug strings while editing tags in game
-  Cons:
-    - How do we deal with hash collisions?
-      - In release there must be NO collisions
-      - In debug, we can store the string inline in SchemaString instead.
-
-#[allow(non_camel_case_types)]
-pub struct SchemaString
-{
-    ptr: BlockPointer<u8>,
-    len: i8,
-}
-
-impl SchemaString
-{
-    fn to_string<'a>(&self) -> &'a str
-    {
-        if !pself.ptr.
-        unsafe
-        {
-            let char_ptr: *const u8= self.ptr.get_pointer();
-            let slice: &[u8]= std::slice::from_raw_parts(char_ptr, self.len as usize);
-
-            str::from_utf8(slice).unwrap()
-        }
-    }
-}
-
-impl crate::Schematizer for SchemaString
-{
-    fn schema_default() -> SchemaString
-    {
-        SchemaString { ptr: std::ptr::null(), len: 0 }
-    }
-}
-*/

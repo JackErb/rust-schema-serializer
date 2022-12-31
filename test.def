@@ -1,5 +1,9 @@
 {
     x: 0,
     point: [[3, 2, 4], [], [0, 1], [1]],
-    variant: Secondary
+    str: "Hello, World", 
+    data: {
+        flag: true,
+        type_enum: Secondary,
+    }
 }

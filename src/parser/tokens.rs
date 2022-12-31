@@ -26,7 +26,7 @@ impl Symbol {
     }
 }
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug)]
 pub enum Token {
     Identifier(String), // A literal identifier (e.g. field name or an enum variant)
     String(String),

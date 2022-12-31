@@ -3,7 +3,7 @@ use super::Symbol;
 
 use std::fmt;
 
-impl fmt::Debug for Token {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Token::Identifier(str) => write!(f, "{}", str),
@@ -67,7 +67,7 @@ pub fn print_tokens(tokens: &Vec<Token>, mut error_index: usize) {
         if index == error_index {
             print!(" ERROR<< {:?} >> ", token);
         } else {
-            print!(" {:?} ", token);
+            print!(" {} ", token);
         }
 
         match token {

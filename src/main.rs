@@ -1,14 +1,16 @@
+pub mod block;
+mod schema_types;
+mod schema_string;
+mod schema_array;
+mod parser;
+
 use schema_macros::Schematize;
-use schema_types::DynamicArray;
+pub use schema_array::SchemaArray;
+pub use schema_string::SchemaString;
 
 use std::collections;
 use std::vec::Vec;
-use std::marker::Copy;
 use std::env;
-
-pub mod block;
-mod schema_types;
-mod parser;
 
 /*
 struct ObjectData {
@@ -24,6 +26,7 @@ pub enum SchemaValue<'a> {
     Decimal(f64),
     Bool(bool),
     Array(Vec<SchemaValue<'a>>), // dynamically sized array, this is also used to represent static arrays
+    String(&'a str),
     EnumVariant(&'a str), // todo: support fields with an optional object attached
     Null,
     // TODO:
@@ -41,82 +44,6 @@ pub trait Schematize {
     fn deserialize(schema_value: &SchemaValue) -> Self;
 
     //fn build_layout(schema_value: &SchemaValue) -> (std::Layout, )
-}
-
-impl Schematize for i32 {
-    fn schema_default() -> i32 { 0 }
-
-    fn serialize(&self) -> SchemaValue {
-        SchemaValue::Integer(*self as i64)
-    }
-
-    fn deserialize(schema_value: &SchemaValue) -> i32 {
-        match schema_value {
-            SchemaValue::Integer(num) => {
-                if *num < i32::MIN as i64 || *num > i32::MAX as i64 {
-                    unimplemented!("Deserialize i32 hit a value that is out of bounds {:?}", schema_value);
-                }
-                *num as i32
-            }
-            _ => unimplemented!("Deserialize i32 hit a wrong value {:?}", schema_value)
-        }
-    }
-}
-
-impl Schematize for f32 {
-    fn schema_default() -> f32 { 0.0 }
-
-    fn serialize(&self) -> SchemaValue {
-        SchemaValue::Decimal(*self as f64)
-    }
-
-    fn deserialize(schema_value: &SchemaValue) -> f32 {
-        match schema_value {
-            SchemaValue::Decimal(schema_num) =>  {
-                // Note that this is downcasting... should we do any bounds checks?
-                *schema_num as f32
-            }
-            _ => unimplemented!("Deserialize f32 hit a wrong value {:?}", schema_value)
-        }
-    }
-}
-
-impl Schematize for bool {
-    fn schema_default() -> bool { false }
-
-    fn serialize(&self) -> SchemaValue {
-        SchemaValue::Bool(*self)
-    }
-
-    fn deserialize(schema_value: &SchemaValue) -> bool {
-        match schema_value {
-            SchemaValue::Bool(schema_bool) => *schema_bool,
-            _ => unimplemented!("Deserialize bool hit a wrong value {:?}", schema_value)
-        }
-    }
-}
-
-impl<T: Schematize + Copy, const N: usize> Schematize for [T; N] {
-    fn schema_default() -> [T; N] { unimplemented!("schema_default() is not supported on arrays."); }
-
-    fn serialize(&self) -> SchemaValue {
-        let vector= self.iter().map(|item| item.serialize()).collect();
-        SchemaValue::Array(vector)
-    }
-
-    fn deserialize(schema_value: &SchemaValue) -> [T; N] {
-        match schema_value {
-            SchemaValue::Array(schema_vector) => {
-                assert!(schema_vector.len() == N, "Deserialize hit an array of the wrong size.");
-                let mut array: [T; N]= [T::schema_default(); N];
-                for (index, item) in schema_vector.iter().enumerate() {
-                    array[index]= T::deserialize(item);
-                }
-                array
-            },
-            _ => unimplemented!("Deserialize array hit a wrong value")
-        }
-    }
 }
 
 #[derive(Schematize, Debug)]
@@ -145,8 +72,9 @@ struct Data {
 #[derive(Schematize, Debug)]
 struct ParserData {
     x: i32,
-    point: DynamicArray::<DynamicArray::<i32>>,
-    variant: DataType,
+    point: SchemaArray::<SchemaArray::<i32>>,
+    str: SchemaString,
+    data: InnerData,
 }
 
 fn serde_test() {

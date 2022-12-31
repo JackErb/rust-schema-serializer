@@ -29,6 +29,7 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
         match token {
             Token::Integer(num) => Ok(SchemaValue::Integer(*num)),
             Token::Decimal(num) => Ok(SchemaValue::Decimal(*num)),
+            Token::String(str) => Ok(SchemaValue::String(str)),
             Token::Identifier(ident) => {
                 if ident == "true" {
                     Ok(SchemaValue::Bool(true))
@@ -55,7 +56,7 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
             // Token::String =>
         }
     } else {
-        Err("Reached end of token stream whilue trying to parse value.")
+        Err("Reached end of token stream while trying to parse value.")
     }
 }
 
@@ -79,6 +80,7 @@ fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
     }
 
     while *index < tokens.len() {
+        // Read the value
         let schema_value= parse_value(tokens, index)?;
         vector.push(schema_value);
 
