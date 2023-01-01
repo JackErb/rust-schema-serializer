@@ -39,7 +39,8 @@ fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream {
 
 pub fn derive_default_fn(
     item_ident: &syn::Ident,
-    fields: &StructFields) -> proc_macro2::TokenStream {
+    fields: &StructFields
+) -> proc_macro2::TokenStream {
 
     // Generate the token stream for initializing the default struct
     //  e.g. x: 0, y: 0.0, points: [0,0,0]
@@ -108,9 +109,42 @@ pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
     }
 }
 
+pub fn derive_build_layout_fn(
+    fields: &StructFields,
+) -> proc_macro2::TokenStream {
+    let fields_build_layout= fields.iter().map (
+        |field| -> proc_macro2::TokenStream {
+            let field_ident= &field.ident;
+            let field_type= &field.ty;
+            quote! {
+                let schema_value= fields_map.get(stringify!(#field_ident)).unwrap_or(&SchemaValue::Null);
+                let layout= <#field_type>::build_layout(schema_value, layout, offsets)?;
+            }
+        }
+    );
+
+    quote! {
+        fn build_layout(schema_value: &SchemaValue, layout: alloc::Layout, offsets: &mut Vec<usize>)
+            -> Result<alloc::Layout, alloc::LayoutError> {
+            match schema_value {
+                SchemaValue::Object(fields_map) => {
+                    #(#fields_build_layout)*
+
+                    Ok(layout)
+                },
+                _ => {
+                    Ok(layout)
+                }
+            }
+
+        }
+    }
+}
+
 pub fn derive_deserialize_fn(
     item_ident: &syn::Ident,
-    fields: &StructFields) -> proc_macro2::TokenStream {
+    fields: &StructFields
+) -> proc_macro2::TokenStream {
 
     let fields_count= fields.len();
 
@@ -119,7 +153,9 @@ pub fn derive_deserialize_fn(
             let field_ident= &field.ident;
             quote! {
                 if !fields_map.contains_key(stringify!(#field_ident)) {
-                    println!("Deserialize object {} is missing field: {:?}", stringify!(#item_ident), stringify!(#field_ident));
+                    let field_path= format!("{}.{}", context.get_path(), stringify!(#field_ident));
+                    println!("Deserialize object '{}' is missing field '{:?}'", stringify!(#item_ident), stringify!(#field_ident));
+                    println!("Field path '{}'", field_path);
                     return Err(SchemaError::MissingField);
                 }
             }
@@ -132,12 +168,17 @@ pub fn derive_deserialize_fn(
             let field_type= &field.ty;
             quote! {
                 // Deserialize the field given the schema value
-                #field_ident: <#field_type>::deserialize(&fields_map[stringify!(#field_ident)])?
+                #field_ident: {
+                    context.path.push(stringify!(#field_ident));
+                    let value= <#field_type>::deserialize(&fields_map[stringify!(#field_ident)], context)?;
+                    context.path.pop();
+                    value
+                }
             }
         });
 
     quote! {
-        fn deserialize(schema_value: &SchemaValue) -> SchemaResult<#item_ident> {
+        fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<#item_ident> {
             match schema_value {
                 SchemaValue::Object(fields_map) => {
                     // Perform validity checks on the map
@@ -152,7 +193,10 @@ pub fn derive_deserialize_fn(
                     Ok(#item_ident { #(#fields_deserialize),* })
                 },
                 _ => {
-                    println!("Deserialize object {} hit a wrong value {:?}", stringify!(#item_ident), schema_value);
+                    println!("Deserialize hit a wrong value for field '{}'. Expected: Object({}), found: {:?}",
+                        context.get_path(),
+                        stringify!(#item_ident),
+                        schema_value);
                     return Err(SchemaError::WrongSchemaValue);
                 }
             }

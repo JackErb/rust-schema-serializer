@@ -49,24 +49,64 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
         SchemaValue::Array(vec)
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<SchemaArray<T>> {
-        // TODO: this shouldn't be allocated on the heap, instead a block allocator should be
-        // passed into deserialize
+    fn build_layout(schema_value: &SchemaValue, layout: alloc::Layout, offsets: &mut Vec<usize>)
+        -> BuildLayoutResult {
         match schema_value {
-            SchemaValue::Array(vec) => {
-                let layout= alloc::Layout::array::<T>(vec.len()).expect("Attempted to deserialize an array that is too large.");
+            SchemaValue::Array(vector) => {
+                // Need to build layout for elements...
+                // First we allocate the static sized block.
+                // If the elements are dynamically sized, well, more allocations...
 
-                // TODO: This is a memory leak
-                unsafe {
-                    let ptr= std::alloc::alloc(layout) as *mut T;
-                    for index in 0..vec.len() {
-                        *ptr.add(index)= T::deserialize(&vec[index])?;
+                if vector.len() > 0 {
+                    // allocate entire static array block for the elements
+                    let array_layout= alloc::Layout::array::<T>(vector.len())?;
+                    let (mut new_layout, offset)= layout.extend(array_layout)?;
+                    offsets.push(offset);
+
+                    // Build the layout for everything else. This is a no-op unless that type is using dynamic memory.
+                    new_layout= new_layout.pad_to_align();
+                    for item in vector {
+                        new_layout= T::build_layout(item, new_layout, offsets)?;
+                    }
+
+                    Ok(new_layout)
+                } else {
+                    // array of size zero. no-op
+                    Ok(layout)
+                }
+            },
+            _ => {
+                // wrong value. no-op
+                Ok(layout)
+            }
+        }
+    }
+
+    fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<SchemaArray<T>> {
+        match schema_value {
+            SchemaValue::Array(vector) => {
+                if vector.len() > 0 {
+                    assert!(context.offset_index < context.offsets.len());
+                    let byte_offset= context.offsets[context.offset_index];
+                    let block_pointer= block::BlockPointer::from_raw_parts(context.block_ptr as *mut T, byte_offset);
+
+                    context.offset_index+= 1;
+
+                    unsafe {
+                        for index in 0..vector.len() {
+                            context.path.push("[]");
+                            *block_pointer.get_pointer_mut().add(index)= T::deserialize(&vector[index], context)?;
+                            context.path.pop();
+                        }
                     }
 
                     Ok(SchemaArray {
-                        block_ptr: block::BlockPointer::from_raw_parts(ptr, 0),
-                        len: vec.len(),
+                        block_ptr: block::BlockPointer::from_raw_parts(context.block_ptr as *mut T, byte_offset),
+                        len: vector.len(),
                     })
+                } else {
+                    // array of size zero. return an empty array.
+                    Ok(SchemaArray::schema_default())
                 }
             },
             _ => {
@@ -90,7 +130,7 @@ impl<T: fmt::Debug> fmt::Debug for SchemaArray<T> {
                 }
                 write!(f, "]")
             },
-            None => write!(f, "NULL")
+            None => write!(f, "[]")
         }
     }
 }

@@ -71,7 +71,7 @@ fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
                 Symbol::CloseBrace => {
                     // consume the close brace, and return an empty vector
                     *index+= 1;
-                    return Ok(SchemaValue::Array(vector))
+                    return Ok(SchemaValue::Array(vector));
                 },
                 _ => ()
             },

@@ -3,31 +3,35 @@ use crate::*;
 use std::alloc;
 use std::str;
 use std::fmt;
+use std::slice;
 
 pub struct SchemaString {
-    array: SchemaArray<u8>, // Byte array of string memory
+    block_ptr: block::BlockPointer<u8>, // Byte array of string memory
+    len: usize,
 }
 
 impl<'a> SchemaString {
     fn as_str(&self) -> Option<&'a str> {
-        let slice= self.array.as_slice()?;
-        unsafe {
-            Some(str::from_utf8_unchecked(slice))
+        if self.block_ptr.is_null() {
+            None
+        } else {
+            unsafe {
+                let slice= slice::from_raw_parts(self.block_ptr.get_pointer(), self.len);
+                Some(str::from_utf8_unchecked(slice))
+            }
         }
     }
 
     fn len(&self) -> usize {
-        match self.as_str() {
-            Some(str) => str.len(),
-            None => 0
-        }
+        self.len
     }
 }
 
 impl Schematize for SchemaString {
     fn schema_default() -> SchemaString {
         SchemaString {
-            array: SchemaArray::schema_default()
+            block_ptr: block::BlockPointer::null(),
+            len: 0,
         }
     }
 
@@ -38,38 +42,73 @@ impl Schematize for SchemaString {
         }
     }
 
-    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<SchemaString> {
+    fn build_layout(schema_value: &SchemaValue, layout: alloc::Layout, offsets: &mut Vec<usize>)
+        -> Result<alloc::Layout, alloc::LayoutError> {
         match schema_value {
-            SchemaValue::String(schema_str) => {
-                // TODO: This is a memory leak
-                unsafe {
-                    let bytes= schema_str.as_bytes();
-                    let layout= alloc::Layout::for_value(bytes);
+            SchemaValue::String(schema_string) => {
+                if schema_string.len() > 0 {
+                    let string_layout= alloc::Layout::for_value(schema_string.as_bytes());
+                    let (new_layout, offset)= layout.extend(string_layout)?;
+                    offsets.push(offset);
 
-                    // Allocate the new pointer on the heap
-                    let raw_ptr= alloc::alloc(layout) as *mut u8;
+                    Ok(new_layout.pad_to_align())
+                } else {
+                    // string of zero length. no-op.
+                    Ok(layout)
+                }
+            }
+            _ => {
+                // hit wrong schema value. no-op.
+                Ok(layout)
+            }
+        }
+    }
 
-                    // Write the string bytes to the block pointer
-                    for index in 0..bytes.len() {
-                        *raw_ptr.add(index)= bytes[index];
+    fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<SchemaString> {
+        match schema_value {
+            SchemaValue::String(schema_string) => {
+                let bytes= schema_string.as_bytes();
+                if bytes.len() > 0 {
+                    let offset_index= context.offset_index;
+                    assert!(offset_index < context.offsets.len());
+                    let byte_offset= context.offsets[offset_index];
+
+                    context.offset_index+= 1;
+
+                    unsafe {
+                        let ptr= context.block_ptr.add(byte_offset) as *mut u8;
+                        for index in 0..bytes.len() {
+                            *ptr.add(index)= bytes[index];
+                        }
+
+                        Ok(SchemaString {
+                            block_ptr: block::BlockPointer::from_raw_parts(context.block_ptr, byte_offset),
+                            len: bytes.len(),
+                        })
                     }
-
-                    let block_ptr= block::BlockPointer::from_raw_parts(raw_ptr, 0);
-
-                    Ok(SchemaString {
-                        array: SchemaArray::from_raw_parts(block_ptr, bytes.len()),
-                    })
+                } else {
+                    // string of zero length. return an empty string, using no dynamic memory.
+                    Ok(SchemaString::schema_default())
                 }
             },
             _ => {
                 println!("Deserialize schema string hit a wrong value {:?}", schema_value);
-                return Err(SchemaError::WrongSchemaValue);
+                Err(SchemaError::WrongSchemaValue)
             }
         }
     }
 }
 
 impl fmt::Debug for SchemaString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self.as_str() {
+            Some(str) => write!(f, "\"{}\"", str),
+            None => write!(f, "\"\"")
+        }
+    }
+}
+
+impl fmt::Display for SchemaString {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.as_str() {
             Some(str) => write!(f, "\"{}\"", str),

@@ -15,7 +15,6 @@ impl fmt::Display for Token {
     }
 }
 
-
 impl fmt::Debug for Symbol {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let char= match self {

@@ -2,14 +2,14 @@ mod tokens;
 mod schema;
 mod debug;
 
-use crate::block;
-use crate::Schematize;
+use crate::*;
 use tokens::Token;
 use tokens::Symbol;
 
 use std::marker;
 use std::fs;
 use std::str;
+use std::alloc;
 
 pub type ParseResult<T>= Result<T, &'static str>;
 
@@ -19,6 +19,10 @@ pub struct BlockDefinition<T> {
 }
 
 impl<'a, T> BlockDefinition<T> {
+    pub fn get_block_handle(&self) -> &block::BlockHandle<T> {
+        &self.block_handle
+    }
+
     pub fn get_definition(&self) -> &'a T {
         assert!(!self.block_handle.is_null());
         unsafe { &*self.block_handle.get_pointer() }
@@ -31,29 +35,50 @@ impl<'a, T> BlockDefinition<T> {
 }
 
 fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinition<T>> {
+    // Parse the file contents into a schem value representation
     let tokens= tokens::string_to_tokens(contents)?;
     let schema_value= schema::tokens_to_schema_value(&tokens)?;
 
-    let definition= BlockDefinition {
-        block_handle: block::allocate_block_handle(),
+    // TODO: Validity check of the structure, optionally tuning it up w/ default values, etc.
+
+    // Build the memory layout for the schema definition
+    let layout= alloc::Layout::new::<T>();
+    let mut layout_offsets= Vec::<usize>::new();
+
+    let layout_result= T::build_layout(&schema_value, layout, &mut layout_offsets);
+    let layout;
+    match layout_result {
+        Ok(built_layout) => {
+            layout= built_layout.pad_to_align();
+        },
+        Err(_) => return Err("Failed to build layout for definition."),
+    };
+
+    // Allocate the block using the layout
+    let block_definition= BlockDefinition {
+        block_handle: block::allocate_block(layout),
         phantom: marker::PhantomData,
     };
 
-    // Deserialize the definition
-    *definition.get_definition_mut()= match T::deserialize(&schema_value) {
-        Ok(definition) => definition,
-        Err(e) => {
-            println!("SchemaError::{:?}", e);
-            return Err("Failed to deserialize schema definition.");
-        }
+    // Deserialize the definition into the block memory
+    let mut context= DeserializeContext {
+        block_ptr: block_definition.get_block_handle().get_pointer_mut_as::<u8>(),
+        offsets: layout_offsets,
+        offset_index: 0,
+        path: Vec::new(),
     };
 
-    Ok(definition)
-
-    // Calculate the block size
-    //let block_size= T::calculate_size();
-    // Allocate a new block
-    // Deserialize the schema_value into the block's memory
+    let result= T::deserialize(&schema_value, &mut context);
+    match result {
+        Ok(deserialized_definition) => {
+            *block_definition.get_definition_mut()= deserialized_definition;
+            Ok(block_definition)
+        },
+        Err(e) => {
+            println!("SchemaError::{:?}", e);
+            Err("Failed to deserialize schema definition.")
+        }
+    }
 }
 
 pub fn load_definition<T: Schematize>(file_path: &str) -> Option<BlockDefinition<T>> {

@@ -11,14 +11,7 @@ pub use schema_string::SchemaString;
 use std::collections;
 use std::vec::Vec;
 use std::env;
-use std::iter;
-
-/*
-struct ObjectData {
-    collections: collections::HashMap<&'static str, SchemaValue>,
-    offsets: collections::HashMap<&'static str, usize>, // contains offsets of dynamic fields
-}
-*/
+use std::alloc;
 
 #[derive(Debug)]
 pub enum SchemaValue<'a> {
@@ -50,16 +43,35 @@ pub enum SchemaError {
 
 type SchemaResult<T>= Result<T, SchemaError>;
 
+pub struct DeserializeContext<'a> {
+    block_ptr: *mut u8,    // the allocated block of memory to deserialize into
+    offsets: Vec<usize>,   // built recursively in Schematize::build_layout()
+    offset_index: usize,   // incremented in recursive Schematize::deserialize() calls
+
+    // TODO: this should be debug only
+    path: Vec<&'a str>, // The field path when deserializing nested objects, e.g. inner.point.x
+}
+
+impl DeserializeContext<'_> {
+    pub fn get_path(&self) -> String {
+        self.path.join(".")
+    }
+}
+
+type BuildLayoutResult = Result<alloc::Layout, alloc::LayoutError>;
+
 pub trait Schematize {
     fn schema_default() -> Self;
     fn serialize(&self) -> SchemaValue;
 
     // In order to deserialize, you must first build the layout to allocate the memory.
     // These two functions must traverse their fields in the same way.
-    /*fn build_layout(
-        schema_value: &SchemaValue,
-        offsets: &mut Vector<usize>) -> Result<alloc::Layout, alloc::LayoutError>*/
-    fn deserialize(schema_value: &SchemaValue) -> SchemaResult<Self> where Self: Sized;
+    fn build_layout(_schema_value: &SchemaValue, layout: alloc::Layout, _offsets: &mut Vec<usize>)
+        -> BuildLayoutResult {
+        /* NO-OP. Most types don't use any dynamic memory */
+        Ok(layout)
+    }
+    fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<Self> where Self: Sized;
 }
 
 #[derive(Schematize, Debug)]
@@ -78,46 +90,46 @@ struct InnerData {
 
 #[derive(Schematize, Debug)]
 struct Data {
-    #[schema_default(point[0]=-1)]
-    point: [i32; 3],
+    //#[schema_default(point[0]=-1)]
+    //point: [i32; 3],
 
     #[schema_default(inner.flag=false)]
     inner: InnerData,
 }
 
 #[derive(Schematize, Debug)]
-struct ParserData {
-    x: i32,
-    point: SchemaArray::<SchemaArray::<SchemaString>>,
-    str: SchemaString,
-    data: InnerData,
+struct Wrapper {
+    s: SchemaString,
 }
 
-fn serde_test() {
-    let datum= Data { point: [1, 2, 3], inner: InnerData { flag: true, type_enum: DataType::Secondary } };
-    println!("{:?}", datum);
+#[derive(Schematize, Debug)]
+struct StringWrapper {
+    string: SchemaArray::<Wrapper>,
+}
 
-    let serialized_value= datum.serialize();
-
-    let datum2= Data::deserialize(&serialized_value);
-    println!("{:?}", datum2);
+#[derive(Schematize, Debug)]
+struct ParserData {
+    point: SchemaArray::<SchemaArray::<SchemaString>>,
 }
 
 fn parse_test() {
     let args: Vec<String>= env::args().collect();
     if args.len() > 1 {
         let file_path= &args[1];
-        println!("Reading block definition '{}'", file_path);
         let block_definition= parser::load_definition::<ParserData>(&file_path);
 
         match block_definition {
-            Some(definition) => println!("Loaded definition: {:?}", definition.get_definition()),
-            None => ()
+            Some(definition) => {
+                println!("Successfully loaded block definition '{}'", file_path);
+                println!("{:?}", definition.get_definition())
+            },
+            None => {
+                println!("Failed to load block definition '{}'", file_path);
+            }
         }
     }
 }
 
 fn main() {
-    serde_test();
     parse_test();
 }

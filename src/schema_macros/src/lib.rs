@@ -33,15 +33,17 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
                     let fields= fields_named.named;
 
                     // Generate the Schematize implementation for this struct
-                    let fields_schema_default_fn= struct_derive::derive_default_fn(item_ident, &fields);
-                    let fields_serialize_fn= struct_derive::derive_serialize_fn(&fields);
-                    let fields_deserialize_fn= struct_derive::derive_deserialize_fn(item_ident, &fields);
+                    let struct_schema_default_fn= struct_derive::derive_default_fn(item_ident, &fields);
+                    let struct_serialize_fn= struct_derive::derive_serialize_fn(&fields);
+                    let struct_build_layout_fn= struct_derive::derive_build_layout_fn(&fields);
+                    let struct_deserialize_fn= struct_derive::derive_deserialize_fn(item_ident, &fields);
 
                     quote! {
                         impl Schematize for #item_ident {
-                            #fields_schema_default_fn
-                            #fields_serialize_fn
-                            #fields_deserialize_fn
+                            #struct_schema_default_fn
+                            #struct_serialize_fn
+                            #struct_build_layout_fn
+                            #struct_deserialize_fn
                         }
                     }
                 },
@@ -51,15 +53,15 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
             let variants= &data_enum.variants;
 
             // Generate the Schematize implementation for this struct
-            let fields_schema_default_fn= enum_derive::derive_default_fn(item_ident, &variants);
-            let fields_serialize_fn= enum_derive::derive_serialize_fn(item_ident, &variants);
-            let fields_deserialize_fn= enum_derive::derive_deserialize_fn(item_ident, &variants);
+            let enum_schema_default_fn= enum_derive::derive_default_fn(item_ident, &variants);
+            let enum_serialize_fn= enum_derive::derive_serialize_fn(item_ident, &variants);
+            let enum_deserialize_fn= enum_derive::derive_deserialize_fn(item_ident, &variants);
 
             quote! {
                 impl Schematize for #item_ident {
-                    #fields_schema_default_fn
-                    #fields_serialize_fn
-                    #fields_deserialize_fn
+                    #enum_schema_default_fn
+                    #enum_serialize_fn
+                    #enum_deserialize_fn
                 }
             }
         }

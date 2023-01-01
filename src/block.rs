@@ -19,14 +19,17 @@ impl<T> BlockHandle<T> {
         self.ptr
     }
 
+    pub fn get_pointer_mut_as<P>(&self) -> *mut P {
+        self.ptr as *mut P
+    }
+
     pub fn is_null(&self) -> bool {
         self.ptr.is_null()
     }
 }
 
-pub fn allocate_block_handle<T>() -> BlockHandle<T> {
+pub fn allocate_block<T>(layout: alloc::Layout) -> BlockHandle<T> {
     // TODO: this is a memory leak
-    let layout= alloc::Layout::new::<T>();
     let ptr= unsafe {
         std::alloc::alloc(layout) as *mut T
     };
@@ -42,19 +45,19 @@ pub fn allocate_block_handle<T>() -> BlockHandle<T> {
 // block to make this guarantee.
 pub struct BlockPointer<T> {
     handle: BlockHandle<T>,
-    offset: u16,
+    offset: usize,
 }
 
 impl<T> BlockPointer<T> {
     pub fn get_pointer(&self) -> *const T {
         unsafe {
-            self.handle.get_pointer().add(self.offset as usize)
+            self.handle.get_pointer().add(self.offset)
         }
     }
 
     pub fn get_pointer_mut(&self) -> *mut T {
         unsafe {
-            self.handle.get_pointer_mut().add(self.offset as usize)
+            self.handle.get_pointer_mut().add(self.offset)
         }
     }
 
@@ -73,7 +76,7 @@ impl<T> BlockPointer<T> {
     }
 
     // TODO: shouldn't need this once I stop allocating on the heap.
-    pub fn from_raw_parts(ptr: *mut T, offset: u16) -> BlockPointer<T> {
+    pub fn from_raw_parts(ptr: *mut T, offset: usize) -> BlockPointer<T> {
         BlockPointer {
             handle: BlockHandle {
                 ptr: ptr,

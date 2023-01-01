@@ -1,0 +1,3 @@
+{
+    point: [{string: [{s: "Test"}, {s: "World"}]}, {string: []}, {string: [{s: "Hellllllooooooooooooo"},{s: "Hellllllooooooooooooo"}, {s: "Test2"}]}],
+}
