@@ -94,7 +94,9 @@ impl Schematize for SchemaString {
                 }
             },
             _ => {
-                println!("Deserialize schema string hit a wrong value {:?}", schema_value);
+                println!("Deserialize hit a wrong value for field '{}'. Expected: String, found: {:?}",
+                    context.get_path(),
+                    schema_value);
                 Err(SchemaError::WrongSchemaValue)
             }
         }

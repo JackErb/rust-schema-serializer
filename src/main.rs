@@ -43,18 +43,26 @@ pub enum SchemaError {
 
 type SchemaResult<T>= Result<T, SchemaError>;
 
-pub struct DeserializeContext<'a> {
+pub struct DeserializeContext {
     block_ptr: *mut u8,    // the allocated block of memory to deserialize into
     offsets: Vec<usize>,   // built recursively in Schematize::build_layout()
     offset_index: usize,   // incremented in recursive Schematize::deserialize() calls
 
     // TODO: this should be debug only
-    path: Vec<&'a str>, // The field path when deserializing nested objects, e.g. inner.point.x
+    path: Vec<String>, // The field path when deserializing nested objects, e.g. inner.point.x
 }
 
-impl DeserializeContext<'_> {
+impl DeserializeContext {
     pub fn get_path(&self) -> String {
-        self.path.join(".")
+        let full_path=self.path.join("");
+        if !full_path.is_empty() {
+            // trim off the first character which is a duplicate period
+            let mut chars= full_path.chars();
+            chars.next();
+            String::from(chars.as_str())
+        } else {
+            full_path
+        }
     }
 }
 
@@ -65,12 +73,12 @@ pub trait Schematize {
     fn serialize(&self) -> SchemaValue;
 
     // In order to deserialize, you must first build the layout to allocate the memory.
-    // These two functions must traverse their fields in the same way.
     fn build_layout(_schema_value: &SchemaValue, layout: alloc::Layout, _offsets: &mut Vec<usize>)
         -> BuildLayoutResult {
         /* NO-OP. Most types don't use any dynamic memory */
         Ok(layout)
     }
+
     fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<Self> where Self: Sized;
 }
 

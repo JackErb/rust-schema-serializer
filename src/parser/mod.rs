@@ -57,7 +57,7 @@ fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
         Err(_) => return Err("Failed to build layout for definition."),
     };
 
-    // Allocate the block memory using the memory layout we just made
+    // Allocate the block memory
     let block_definition= BlockDefinition {
         block_handle: block::allocate_block(layout),
         phantom: marker::PhantomData,
@@ -65,7 +65,8 @@ fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
 
     // Memory will be written directly to `block_ptr`, using the offset as defined by `offsets[offset_index]`.
     // offset_index is incremenet as we recursively deserialize fields. `build_layout()` and `deserialize()`
-    // MUST use the same logic in determining if the schema value is using dynamic memory.
+    // MUST use the same logic in determining if the schema value is using dynamic memory, and MUST traverse
+    // the fields in the same order so that the offsets line up correctly.
     let mut context= DeserializeContext {
         block_ptr: block_definition.get_block_handle().get_pointer_mut_as::<u8>(),
         offsets: layout_offsets,

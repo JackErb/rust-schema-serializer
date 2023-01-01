@@ -96,7 +96,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                     unsafe {
                         // Deserialize all the elements
                         for index in 0..vector.len() {
-                            context.path.push("[]");
+                            context.path.push(format!("[{}]", index));
                             *block_pointer.get_pointer_mut().add(index)= T::deserialize(&vector[index], context)?;
                             context.path.pop();
                         }
@@ -112,7 +112,9 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                 }
             },
             _ => {
-                println!("Deserialize schema array hit a wrong value {:?}", schema_value);
+                println!("Deserialize hit a wrong value for field '{}'. Expected: Array, found: {:?}",
+                    context.get_path(),
+                    schema_value);
                 return Err(SchemaError::WrongSchemaValue);
             }
         }

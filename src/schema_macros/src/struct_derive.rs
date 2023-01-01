@@ -169,7 +169,7 @@ pub fn derive_deserialize_fn(
             quote! {
                 // Deserialize the field given the schema value
                 #field_ident: {
-                    context.path.push(stringify!(#field_ident));
+                    context.path.push(format!(".{}", stringify!(#field_ident).to_string()));
                     let value= <#field_type>::deserialize(&fields_map[stringify!(#field_ident)], context)?;
                     context.path.pop();
                     value

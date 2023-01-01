@@ -68,7 +68,7 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
         _ => unimplemented!("Schematize only supports structs & enums")
     };
 
-    //println!("{}", schema_impl);
+    println!("{}", schema_impl);
 
     schema_impl.into()
 }
