@@ -69,6 +69,7 @@ impl Schematize for SchemaString {
             SchemaValue::String(schema_string) => {
                 let bytes= schema_string.as_bytes();
                 if bytes.len() > 0 {
+                    // Get the block pointer offset for this string
                     let offset_index= context.offset_index;
                     assert!(offset_index < context.offsets.len());
                     let byte_offset= context.offsets[offset_index];
@@ -76,6 +77,7 @@ impl Schematize for SchemaString {
                     context.offset_index+= 1;
 
                     unsafe {
+                        // Copy the string bytes over
                         let ptr= context.block_ptr.add(byte_offset) as *mut u8;
                         for index in 0..bytes.len() {
                             *ptr.add(index)= bytes[index];

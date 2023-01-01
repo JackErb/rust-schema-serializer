@@ -63,7 +63,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                     let (mut new_layout, offset)= layout.extend(array_layout)?;
                     offsets.push(offset);
 
-                    // Build the layout for everything else. This is a no-op unless that type is using dynamic memory.
+                    // Build the layout for everything else. This is a no-op unless T is using dynamic memory.
                     new_layout= new_layout.pad_to_align();
                     for item in vector {
                         new_layout= T::build_layout(item, new_layout, offsets)?;
@@ -86,6 +86,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
         match schema_value {
             SchemaValue::Array(vector) => {
                 if vector.len() > 0 {
+                    // Get the block pointer offset for this array
                     assert!(context.offset_index < context.offsets.len());
                     let byte_offset= context.offsets[context.offset_index];
                     let block_pointer= block::BlockPointer::from_raw_parts(context.block_ptr as *mut T, byte_offset);
@@ -93,6 +94,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                     context.offset_index+= 1;
 
                     unsafe {
+                        // Deserialize all the elements
                         for index in 0..vector.len() {
                             context.path.push("[]");
                             *block_pointer.get_pointer_mut().add(index)= T::deserialize(&vector[index], context)?;

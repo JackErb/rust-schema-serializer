@@ -45,7 +45,10 @@ fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
     let layout= alloc::Layout::new::<T>();
     let mut layout_offsets= Vec::<usize>::new();
 
+    // Recursively build the layout on the fields in this schematize type.
+    // This is a no-op unless there are fields using dynamic memory (e.g. strings, vectors)
     let layout_result= T::build_layout(&schema_value, layout, &mut layout_offsets);
+
     let layout;
     match layout_result {
         Ok(built_layout) => {
@@ -54,20 +57,23 @@ fn build_definition<T: Schematize>(contents: &str) -> ParseResult<BlockDefinitio
         Err(_) => return Err("Failed to build layout for definition."),
     };
 
-    // Allocate the block using the layout
+    // Allocate the block memory using the memory layout we just made
     let block_definition= BlockDefinition {
         block_handle: block::allocate_block(layout),
         phantom: marker::PhantomData,
     };
 
-    // Deserialize the definition into the block memory
+    // Memory will be written directly to `block_ptr`, using the offset as defined by `offsets[offset_index]`.
+    // offset_index is incremenet as we recursively deserialize fields. `build_layout()` and `deserialize()`
+    // MUST use the same logic in determining if the schema value is using dynamic memory.
     let mut context= DeserializeContext {
         block_ptr: block_definition.get_block_handle().get_pointer_mut_as::<u8>(),
         offsets: layout_offsets,
         offset_index: 0,
-        path: Vec::new(),
+        path: Vec::new(),  // used for debug inspection
     };
 
+    // Deserialize the definition into the block memory
     let result= T::deserialize(&schema_value, &mut context);
     match result {
         Ok(deserialized_definition) => {

@@ -22,7 +22,7 @@ pub enum SchemaValue<'a> {
     Array(Vec<SchemaValue<'a>>), // array of arbitrary size
     String(&'a str),             // string of arbitrary size
     EnumVariant(&'a str), // todo: support fields with an optional object attached
-    Null, // this is currently unused but could be useful to generate a valid schema rep of an object?
+    Null,
     // TODO:
     //   String
     //   Impl (schema owner pointer/mix in pattern)
