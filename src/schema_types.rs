@@ -9,8 +9,8 @@ macro_rules! schematize_num {
         impl Schematize for $type {
             fn schema_default() -> $type { $default_value }
 
-            fn serialize(&self) -> SchemaValue {
-                $($schema_value)*(*self as $cast_type)
+            fn serialize(&self, context: &mut SerializeContext) {
+                context.print(&self.to_string());
             }
 
             fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<$type> {
@@ -43,8 +43,8 @@ schematize_num!(f32, f64, 0.0, SchemaValue::Decimal);
 impl Schematize for bool {
     fn schema_default() -> bool { false }
 
-    fn serialize(&self) -> SchemaValue {
-        SchemaValue::Bool(*self)
+    fn serialize(&self, context: &mut SerializeContext) {
+        context.print(&self.to_string());
     }
 
     fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<bool> {
@@ -65,11 +65,10 @@ impl<T: Schematize + Copy, const N: usize> Schematize for [T; N] {
         [T::schema_default(); N]
     }
 
-    fn serialize(&self) -> SchemaValue {
-        let vector= self.iter().map(|item| item.serialize()).collect();
-        SchemaValue::Array(vector)
+    fn serialize(&self, context: &mut SerializeContext) {
+        schema_array::serialize_array(self.as_slice(), context);
     }
-    
+
     fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<[T; N]> {
         match schema_value {
             SchemaValue::Array(schema_vector) => {

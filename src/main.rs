@@ -66,11 +66,34 @@ impl DeserializeContext {
     }
 }
 
+pub struct SerializeContext {
+    string: String,
+    tabs: i16,
+}
+
+impl SerializeContext {
+    fn print(&mut self, content: &str) {
+        self.string.push_str(content);
+    }
+
+    fn print_tabs(&mut self) {
+        for _ in 0..self.tabs {
+            self.string.push_str("  ");
+        }
+    }
+
+    fn println(&mut self) {
+        self.string.push_str("\n");
+    }
+}
+
 type BuildLayoutResult = Result<alloc::Layout, alloc::LayoutError>;
 
 pub trait Schematize {
     fn schema_default() -> Self;
-    fn serialize(&self) -> SchemaValue;
+
+    // Write the data of this object to a string. This is the inverse of parser::load_definition<>
+    fn serialize(&self, context: &mut SerializeContext);
 
     // In order to deserialize, you must first build the layout to allocate the memory.
     fn build_layout(_schema_value: &SchemaValue, layout: alloc::Layout, _offsets: &mut Vec<usize>)
@@ -117,7 +140,10 @@ struct StringWrapper {
 
 #[derive(Schematize, Debug)]
 struct ParserData {
+    s: SchemaString,
+    inner: InnerData,
     point: SchemaArray::<SchemaArray::<SchemaString>>,
+    inners: SchemaArray::<SchemaArray::<InnerData>>,
 }
 
 fn parse_test() {
@@ -127,11 +153,14 @@ fn parse_test() {
         let block_definition= parser::load_definition::<ParserData>(&file_path);
 
         match block_definition {
-            Some(definition) => {
+            Ok(definition) => {
                 println!("Successfully loaded block definition '{}'", file_path);
-                println!("{:?}", definition.get_definition())
+                println!("{:?}", definition.get_definition());
+
+                println!("Serializing definition");
+                println!("\n{}", parser::serialize_definition(definition));
             },
-            None => {
+            Err(_) => {
                 println!("Failed to load block definition '{}'", file_path);
             }
         }

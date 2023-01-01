@@ -35,10 +35,16 @@ impl Schematize for SchemaString {
         }
     }
 
-    fn serialize(&self) -> SchemaValue<'_> {
+    fn serialize(&self, context: &mut SerializeContext) {
         match self.as_str() {
-            Some(str) => SchemaValue::String(str),
-            None => SchemaValue::String("")
+            Some(str) => {
+                context.print("\"");
+                context.print(str);
+                context.print("\"");
+            },
+            None => {
+                context.print("\"\"");
+            }
         }
     }
 

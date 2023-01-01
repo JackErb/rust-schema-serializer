@@ -33,6 +33,27 @@ impl<'a, T> SchemaArray<T> {
     }
 }
 
+// helper function to write a formatted array to serialize string
+pub fn serialize_array<T: Schematize>(slice: &[T], context: &mut SerializeContext) {
+    context.print("[");
+
+    context.tabs+= 1;
+    context.println();
+    context.print_tabs();
+
+    for (index, element) in slice.iter().enumerate() {
+        element.serialize(context);
+        if index != slice.len()-1 {
+            context.print(",\n");
+            context.print_tabs();
+        }
+    }
+    context.tabs-= 1;
+    context.println();
+    context.print_tabs();
+    context.print("]");
+}
+
 impl<T: Schematize> Schematize for SchemaArray<T> {
     fn schema_default() -> SchemaArray<T> {
         SchemaArray {
@@ -41,12 +62,15 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
         }
     }
 
-    fn serialize(&self) -> SchemaValue<'_> {
-        let vec: Vec<SchemaValue>= match self.as_slice() {
-            Some(slice) => slice.iter().map(|element| element.serialize()).collect(),
-            None => Vec::new()
-        };
-        SchemaValue::Array(vec)
+    fn serialize(&self, context: &mut SerializeContext) {
+        match self.as_slice() {
+            Some(slice) => {
+                serialize_array(slice, context);
+            },
+            None => {
+                context.print("[]");
+            }
+        }
     }
 
     fn build_layout(schema_value: &SchemaValue, layout: alloc::Layout, offsets: &mut Vec<usize>)

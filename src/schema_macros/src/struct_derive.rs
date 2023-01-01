@@ -88,23 +88,39 @@ pub fn derive_default_fn(
 
 pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
     // Generate the token stream for building the field map
-    let fields_serialize= fields.iter().map(
-        |field| -> proc_macro2::TokenStream {
+    let fields_serialize= fields.iter().enumerate().map(
+        |(index, field)| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
+
+            let newline;
+            if index == fields.len()-1 {
+                newline= quote! {};
+            } else {
+                newline= quote! {
+                    context.print(",\n");
+                    context.print_tabs();
+                }
+            }
+
             quote! {
-                // Insert to the map, recurisvely calling serialize on the field.
-                //    e.g. ("x", SchemaValue::Integer(32))
-                fields_map.insert(stringify!(#field_ident), self.#field_ident.serialize());
+                context.print(&format!("{}: ", stringify!(#field_ident)));
+                self.#field_ident.serialize(context);
+                #newline
             }
         });
 
     quote! {
-        fn serialize(&self) -> SchemaValue {
-            // Build the hash map representing this object
-            let mut fields_map= std::collections::HashMap::<&str, SchemaValue>::new();
+        fn serialize(&self, context: &mut SerializeContext) {
+            context.print("{\n");
+            context.tabs+= 1;
+            context.print_tabs();
+
             #(#fields_serialize)*
 
-            SchemaValue::Object(fields_map)
+            context.tabs-= 1;
+            context.println();
+            context.print_tabs();
+            context.print("}");
         }
     }
 }

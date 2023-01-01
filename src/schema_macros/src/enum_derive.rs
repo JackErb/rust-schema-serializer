@@ -29,15 +29,15 @@ pub fn derive_serialize_fn(
             assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
             quote! {
-                #enum_ident::#variant_ident => stringify!(#variant_ident),
+                #enum_ident::#variant_ident => context.print(stringify!(#variant_ident)),
             }
         });
 
     quote! {
-        fn serialize(&self) -> SchemaValue {
-            SchemaValue::EnumVariant(match self {
+        fn serialize(&self, context: &mut SerializeContext) {
+            match self {
                 #(#variants_serialize)*
-            })
+            }
         }
     }
 }

@@ -1,3 +1,28 @@
 {
-    point: [[], ["0"], ["","1askldfjlhuasdifjads"], ["0",1,"2", "Hello World!"]]
+    s: "Testing, testing, 1, 2, 3....",
+    inner:
+    {
+        flag: true,
+        type_enum: Secondary,
+    },
+    point: [[], ["0"], ["","1askldfjlhuasdifjads"], ["0","1","2", "Hello World!"]]
+    inners: [
+        [
+    {
+        flag: true,
+        type_enum: Secondary,
+    },
+    {
+        flag: false,
+        type_enum: Secondary,
+    }
+        ], [
+    {
+        flag: true,
+        type_enum: Tertiary,
+    }
+
+
+        ]
+    ]
 }
