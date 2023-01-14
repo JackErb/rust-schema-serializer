@@ -25,12 +25,12 @@ fn generate_default_value(field_type: &syn::Type) -> proc_macro2::TokenStream {
         syn::Type::Array(array) => {
             let default_value= generate_default_value(&array.elem);
             let size= cast!(&cast!(&array.len, syn::Expr::Lit).lit, syn::Lit::Int);
-            quote! {
+            return quote! {
                 [#default_value; #size]
             }
         }
         _ =>
-            quote! {
+            return quote! {
                 #field_type::schema_default()
             }
     }

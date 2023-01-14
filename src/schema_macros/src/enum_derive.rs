@@ -11,10 +11,30 @@ pub fn derive_default_fn(
     assert!(enum_variants.len() > 0, "Cannot schematize uninhabitable enum.");
 
     // TODO: Look for schema_default markup
-    let first_variant= &enum_variants[0].ident;
+    let default_variant= &enum_variants[0];
+
+    let variant_construct: proc_macro2::TokenStream;
+    if default_variant.fields.len() > 0 {
+        let fields_default= default_variant.fields.iter().map(
+            |field| -> proc_macro2::TokenStream {
+                let field_type= &field.ty;
+
+                return quote! {
+                    #field_type::schema_default()
+                }
+            }
+        );
+
+        variant_construct= quote! { #default_variant(#(#fields_default),*) };
+
+        todo!("Serialize, Deserialize, and Build Layout all have to be implemented to fully support enums w/ fields.");
+    } else {
+        variant_construct= quote! { #default_variant };
+    }
+
     quote! {
         fn schema_default() -> #enum_ident {
-            #enum_ident::#first_variant
+            #enum_ident::#variant_construct
         }
     }
 }
@@ -28,7 +48,7 @@ pub fn derive_serialize_fn(
         |variant| -> proc_macro2::TokenStream {
             assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
-            quote! {
+            return quote! {
                 #enum_ident::#variant_ident => context.print(stringify!(#variant_ident)),
             }
         });
@@ -50,10 +70,12 @@ pub fn derive_deserialize_fn(
         |variant| -> proc_macro2::TokenStream {
             assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
-            quote! {
+            return quote! {
                 stringify!(#variant_ident) => #enum_ident::#variant_ident,
             }
         });
+
+
 
     quote! {
         fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<#enum_ident> {

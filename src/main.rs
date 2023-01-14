@@ -164,6 +164,8 @@ fn parse_test() {
                 println!("Failed to load block definition '{}'", file_path);
             }
         }
+    } else {
+        println!("No arguments supplied. Terminating program.");
     }
 }
 

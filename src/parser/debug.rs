@@ -1,5 +1,4 @@
-use super::Token;
-use super::Symbol;
+use crate::parser::tokens::{Token, Symbol};
 
 use std::fmt;
 

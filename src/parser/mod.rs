@@ -3,8 +3,6 @@ mod schema;
 mod debug;
 
 use crate::*;
-use tokens::Token;
-use tokens::Symbol;
 
 use std::marker;
 use std::fs;

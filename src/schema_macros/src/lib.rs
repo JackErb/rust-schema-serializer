@@ -26,7 +26,7 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
     let item_ident= &item_ast.ident;
 
     // Generate the token stream for the schema implementation of this item.
-    let schema_impl: proc_macro2::TokenStream= match item_ast.data {
+    match item_ast.data {
         syn::Data::Struct(data_struct) =>
             match data_struct.fields {
                 syn::Fields::Named(fields_named) => {
@@ -38,14 +38,18 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
                     let struct_build_layout_fn= struct_derive::derive_build_layout_fn(&fields);
                     let struct_deserialize_fn= struct_derive::derive_deserialize_fn(item_ident, &fields);
 
-                    quote! {
+                    let schematize_impl= quote! {
                         impl Schematize for #item_ident {
                             #struct_schema_default_fn
                             #struct_serialize_fn
                             #struct_build_layout_fn
                             #struct_deserialize_fn
                         }
-                    }
+                    };
+
+                    //println!("{}", schematize_impl);
+
+                    schematize_impl.into()
                 },
                 _ => unimplemented!("Schematize only supports named struct fields"),
             }
@@ -57,18 +61,18 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
             let enum_serialize_fn= enum_derive::derive_serialize_fn(item_ident, &variants);
             let enum_deserialize_fn= enum_derive::derive_deserialize_fn(item_ident, &variants);
 
-            quote! {
+            let schematize_impl= quote! {
                 impl Schematize for #item_ident {
                     #enum_schema_default_fn
                     #enum_serialize_fn
                     #enum_deserialize_fn
                 }
-            }
+            };
+
+            println!("{}", schematize_impl);
+
+            schematize_impl.into()
         }
         _ => unimplemented!("Schematize only supports structs & enums")
-    };
-
-    //println!("{}", schema_impl);
-
-    schema_impl.into()
+    }
 }

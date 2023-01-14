@@ -1,8 +1,7 @@
-use super::Token;
-use super::Symbol;
-use super::ParseResult;
-use super::debug;
 use crate::SchemaValue;
+use crate::parser::tokens::{Token, Symbol};
+use super::ParseResult;
+use crate::parser::debug;
 
 use std::collections;
 
@@ -52,8 +51,6 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
                 println!("Found invalid token '{:?}' while parsing value.", token);
                 Err("Invalid token found while parsing value.")
             }
-            // TODO:
-            // Token::String =>
         }
     } else {
         Err("Reached end of token stream while trying to parse value.")
@@ -63,7 +60,7 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
 fn parse_array<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<SchemaValue<'a>> {
     let mut vector= Vec::new();
 
-    // Special case for an empty array `[]`
+    // Special case: check for an empty array `[]`
     if *index < tokens.len() {
         // peek the next character
         match &tokens[*index] {
@@ -130,7 +127,7 @@ fn parse_object<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sc
     Err("Reached EOF while parsing object.")
 }
 
-pub fn tokens_to_schema_value<'a>(tokens: &'a Vec<Token>) -> ParseResult<SchemaValue<'a>> {
+pub fn tokens_to_schema_value(tokens: &Vec<Token>) -> ParseResult<SchemaValue> {
     if tokens.len() == 0 {
         return Err("Cannot parse empty token stream.");
     }
