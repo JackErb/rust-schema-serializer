@@ -78,7 +78,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
         match schema_value {
             SchemaValue::Array(vector) => {
                 // Need to build layout for elements...
-                // First we allocate the static sized block.
+                // First we allocate the static sized block for the schema array pointers.
                 // If the elements are dynamically sized, well, more allocations...
 
                 if vector.len() > 0 {
@@ -87,7 +87,7 @@ impl<T: Schematize> Schematize for SchemaArray<T> {
                     let (mut new_layout, offset)= layout.extend(array_layout)?;
                     offsets.push(offset);
 
-                    // Build the layout for everything else. This is a no-op unless T is using dynamic memory.
+                    // Build the layout for elements. This is a no-op unless T is using dynamic memory.
                     new_layout= new_layout.pad_to_align();
                     for item in vector {
                         new_layout= T::build_layout(item, new_layout, offsets)?;

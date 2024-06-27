@@ -2,7 +2,7 @@
     Defines the procedural macro #[derive(Schematize)] which can be added to items (structs/enums)
     to generate schema functionality.
 
-    Functionality includes:
+    Functions includes:
       schema_default
        - generates a default version of the struct, respecting any #[schema_default(...)] markup
       serialize
