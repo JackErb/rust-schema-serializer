@@ -37,7 +37,7 @@ fn parse_value<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sch
                 } else {
                     // Assume this is an enum variant... we could do better here.
                     // Maybe checking explicitly if this is a valid enum (requires type info)
-                    Ok(SchemaValue::EnumVariant(ident))
+                    parse_enum(&ident, tokens, index)
                 }
             }
             Token::Punctuation(Symbol::OpenBrace) => {
@@ -125,6 +125,32 @@ fn parse_object<'a>(tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<Sc
     }
 
     Err("Reached EOF while parsing object.")
+}
+
+fn parse_enum<'a>(ident: &'a String, tokens: &'a Vec<Token>, index: &mut usize) -> ParseResult<SchemaValue<'a>> {
+    let variant_field= if *index < tokens.len() {
+        // peek the next character
+        match &tokens[*index] {
+            Token::Punctuation(symbol) => match symbol {
+                Symbol::OpenCurlyBrace => {
+                    // consume the open brace
+                    *index+= 1;
+
+                    let field_value= parse_value(tokens, index)?;
+
+                    consume_next_token!(tokens, index, Token::Punctuation(Symbol::CloseCurlyBrace));
+
+                    field_value
+                },
+                _ => SchemaValue::Null
+            },
+            _ => SchemaValue::Null
+        }
+    } else {
+        SchemaValue::Null
+    };
+
+    Ok(SchemaValue::EnumVariant(ident, Box::new(variant_field)))
 }
 
 pub fn tokens_to_schema_value(tokens: &Vec<Token>) -> ParseResult<SchemaValue> {

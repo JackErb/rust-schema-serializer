@@ -48,7 +48,7 @@ pub fn derive_default_fn(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
             let schema_default_value= generate_default_value(&field.ty);
-            quote! {
+            return quote! {
                 #field_ident : #schema_default_value
             }
         });
@@ -102,7 +102,7 @@ pub fn derive_serialize_fn(fields: &StructFields) -> proc_macro2::TokenStream {
                 }
             }
 
-            quote! {
+            return quote! {
                 context.print(&format!("{}: ", stringify!(#field_ident)));
                 self.#field_ident.serialize(context);
                 #newline
@@ -132,7 +132,7 @@ pub fn derive_build_layout_fn(
         |field| -> proc_macro2::TokenStream {
             let field_ident= &field.ident;
             let field_type= &field.ty;
-            quote! {
+            return quote! {
                 let schema_value= fields_map.get(stringify!(#field_ident)).unwrap_or(&SchemaValue::Null);
                 let layout= <#field_type>::build_layout(schema_value, layout, offsets)?;
             }
@@ -152,7 +152,6 @@ pub fn derive_build_layout_fn(
                     Ok(layout)
                 }
             }
-
         }
     }
 }

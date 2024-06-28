@@ -13,8 +13,7 @@ pub fn derive_default_fn(
     // TODO: Look for schema_default markup
     let default_variant= &enum_variants[0];
 
-    let variant_construct: proc_macro2::TokenStream;
-    if default_variant.fields.len() > 0 {
+    let variant_construct= if default_variant.fields.len() > 0 {
         let fields_default= default_variant.fields.iter().map(
             |field| -> proc_macro2::TokenStream {
                 let field_type= &field.ty;
@@ -25,12 +24,10 @@ pub fn derive_default_fn(
             }
         );
 
-        variant_construct= quote! { #default_variant(#(#fields_default),*) };
-
-        todo!("Serialize, Deserialize, and Build Layout all have to be implemented to fully support enums w/ fields.");
+       quote! { #default_variant(#(#fields_default),*) }
     } else {
-        variant_construct= quote! { #default_variant };
-    }
+        quote! { #default_variant }
+    };
 
     quote! {
         fn schema_default() -> #enum_ident {
@@ -46,11 +43,35 @@ pub fn derive_serialize_fn(
     // Generate map from enum value to string representing enum
     let variants_serialize= enum_variants.iter().map(
         |variant| -> proc_macro2::TokenStream {
-            assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
+
             let variant_ident= &variant.ident;
-            return quote! {
-                #enum_ident::#variant_ident => context.print(stringify!(#variant_ident)),
-            }
+
+            return match &variant.fields {
+                syn::Fields::Unit => quote! {
+                    #enum_ident::#variant_ident => context.print(stringify!(#variant_ident)),
+                },
+                syn::Fields::Unnamed(fields) => {
+                    assert!(fields.unnamed.len() == 1, "Can have max of one field in an enum variant.");
+
+                    return quote! {
+                        #enum_ident::#variant_ident(field) => {
+                            context.print(stringify!(#variant_ident));
+                            context.print(" {");
+
+                            context.tabs+= 1;
+                            context.println();
+                            context.print_tabs();
+                            field.serialize(context);
+                            context.println();
+                            context.tabs-= 1;
+
+                            context.print_tabs();
+                            context.print("}");
+                        },
+                    }
+                },
+                syn::Fields::Named(_) => panic!("Named fields in enums are not supported.")
+            };
         });
 
     quote! {
@@ -62,16 +83,84 @@ pub fn derive_serialize_fn(
     }
 }
 
+pub fn derive_build_layout_fn(enum_variants: &EnumVariants) -> proc_macro2::TokenStream {
+
+    // match Self
+    //    case Primary => Ok(layout)
+    //    case Tertiary(field) => Ok(i32::build_layout(field, layout, offsets)
+
+    let variants_build_layout= enum_variants.iter().map(
+        |variant| -> proc_macro2::TokenStream {
+            let variant_ident= &variant.ident;
+
+            let build_layout_variant= match &variant.fields {
+                syn::Fields::Unit => quote! { Ok(layout) },
+                syn::Fields::Unnamed(fields) => {
+                    assert!(fields.unnamed.len() == 1, "Can have max of one field in an enum variant.");
+
+                    let field_type= &fields.unnamed[0].ty;
+
+                    quote! {
+                        Ok(#field_type::build_layout(enum_field, layout, offsets)?)
+                    }
+                },
+                syn::Fields::Named(_) => panic!("Named fields in enums are not supported."),
+            };
+
+            return quote! {
+                stringify!(#variant_ident) => #build_layout_variant,
+            }
+        }
+    );
+
+    quote! {
+        fn build_layout(schema_value: &SchemaValue, layout: alloc::Layout, offsets: &mut Vec<usize>)
+            -> Result<alloc::Layout, alloc::LayoutError> {
+            match schema_value {
+                SchemaValue::EnumVariant(enum_name, enum_field) => {
+                    match *enum_name {
+                        #(#variants_build_layout)*
+                        _ => {
+                            // wrong value, no-op
+                            Ok(layout)
+                        }
+                    }
+                },
+                _ => {
+                    // wrong value, no-op
+                    Ok(layout)
+                }
+            }
+        }
+    }
+}
+
 pub fn derive_deserialize_fn(
     enum_ident: &syn::Ident,
     enum_variants: &EnumVariants) -> proc_macro2::TokenStream {
 
     let variants_deserialize= enum_variants.iter().map(
         |variant| -> proc_macro2::TokenStream {
-            assert!(matches!(variant.fields, syn::Fields::Unit), "Only unit enum variants are supported");
             let variant_ident= &variant.ident;
+
+            let deserialize_variant= match &variant.fields {
+                syn::Fields::Unit => quote! {
+                    #enum_ident::#variant_ident
+                },
+                syn::Fields::Unnamed(fields) => {
+                    assert!(fields.unnamed.len() == 1, "Can have max of one field in an enum variant.");
+
+                    let field_type= &fields.unnamed[0].ty;
+
+                    quote! {
+                        #enum_ident::#variant_ident(#field_type::deserialize(enum_field, context)?)
+                    }
+                },
+                syn::Fields::Named(_) => panic!("Named fields in enums are not supported.")
+            };
+
             return quote! {
-                stringify!(#variant_ident) => #enum_ident::#variant_ident,
+                stringify!(#variant_ident) => #deserialize_variant,
             }
         });
 
@@ -80,13 +169,13 @@ pub fn derive_deserialize_fn(
     quote! {
         fn deserialize(schema_value: &SchemaValue, context: &mut DeserializeContext) -> SchemaResult<#enum_ident> {
             Ok(match schema_value {
-                SchemaValue::EnumVariant(field_name) =>
-                    match *field_name{
+                SchemaValue::EnumVariant(enum_name, enum_field) =>
+                    match *enum_name {
                         #(#variants_deserialize)*
                         _ => {
                             println!("Deserialize hit an unexpected identifier for field '{}'. Expected: EnumVariant, found: {}.",
                                 context.get_path(),
-                                field_name);
+                                enum_name);
                             println!("Could this be incorrectly spelled enum variant or removed from the new schema?");
                             return Err(SchemaError::UnknownIdentifier);
                         }

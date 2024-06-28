@@ -19,7 +19,7 @@
         ], [
     {
         flag: true,
-        type_enum: Tertiary,
+        type_enum: Tertiary{ { string: [ { s: "asdfaskdjfasdf" }, { s: "" }, { s: "Jack Erb" } ] } },
     }
 
 

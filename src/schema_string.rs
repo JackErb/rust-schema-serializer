@@ -22,9 +22,9 @@ impl<'a> SchemaString {
         }
     }
 
-    fn len(&self) -> usize {
-        self.len
-    }
+    //fn len(&self) -> usize {
+    //    self.len
+    //}
 }
 
 impl Schematize for SchemaString {

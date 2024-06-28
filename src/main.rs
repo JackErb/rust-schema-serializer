@@ -15,20 +15,23 @@ use std::alloc;
 
 #[derive(Debug)]
 pub enum SchemaValue<'a> {
-    Object(collections::HashMap<&'a str, SchemaValue<'a>>), // represents a schematized struct
+    Object(collections::HashMap<&'a str, SchemaValue<'a>>),
+    // represents a schematized struct
     Integer(i64),
     Decimal(f64),
     Bool(bool),
-    Array(Vec<SchemaValue<'a>>), // array of arbitrary size
-    String(&'a str),             // string of arbitrary size
-    EnumVariant(&'a str), // todo: support fields with an optional object attached
+    // array of arbitrary size
+    Array(Vec<SchemaValue<'a>>),
+    // string of arbitrary size
+    String(&'a str),
+    EnumVariant(&'a str, Box<SchemaValue<'a>>),
     Null,
+
     // TODO:
-    //   String
     //   Impl (schema owner pointer/mix in pattern)
-    //     - the mix in pattern could be accomplished via Enums with fields instead, maybe easier
-    //   Array
-    //     - we have the schema array type, but need to support serializing into a dynamic sized array
+    //     - we do support mix-ins in a way with enum variants w/ fields, but that breaks down
+    //       for recursive cases (e.g. an enum which can itself reference the same enum)
+    //
 }
 
 #[derive(Debug)]
@@ -98,7 +101,7 @@ pub trait Schematize {
     // In order to deserialize, you must first build the layout to allocate the memory.
     fn build_layout(_schema_value: &SchemaValue, layout: alloc::Layout, _offsets: &mut Vec<usize>)
         -> BuildLayoutResult {
-        /* NO-OP. Most types don't use any dynamic memory */
+        // NO-OP. Most types don't use any dynamic memory
         Ok(layout)
     }
 
@@ -109,23 +112,19 @@ pub trait Schematize {
 enum DataType {
     Primary,
     Secondary,
-    Tertiary,
+    Tertiary(StringWrapper)
 }
 
 #[derive(Schematize, Debug)]
 struct InnerData {
     flag: bool,
-    #[schema_default(type_enum=DataType::Tertiary)]
+    #[schema_default(type_enum=DataType::Secondary)]
     type_enum: DataType,
 }
 
 #[derive(Schematize, Debug)]
 struct Data {
-    //#[schema_default(point[0]=-1)]
-    //point: [i32; 3],
-
-    #[schema_default(inner.flag=false)]
-    inner: InnerData,
+    point: [i32; 3],
 }
 
 #[derive(Schematize, Debug)]

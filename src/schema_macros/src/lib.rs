@@ -59,12 +59,14 @@ pub fn derive_schematize_impl(item: proc_macro::TokenStream) -> proc_macro::Toke
             // Generate the Schematize implementation for this struct
             let enum_schema_default_fn= enum_derive::derive_default_fn(item_ident, &variants);
             let enum_serialize_fn= enum_derive::derive_serialize_fn(item_ident, &variants);
-            let enum_deserialize_fn= enum_derive::derive_deserialize_fn(item_ident, &variants);
+            let enum_build_layout_fn = enum_derive::derive_build_layout_fn(&variants);
+            let enum_deserialize_fn = enum_derive::derive_deserialize_fn(item_ident, &variants);
 
             let schematize_impl= quote! {
                 impl Schematize for #item_ident {
                     #enum_schema_default_fn
                     #enum_serialize_fn
+                    #enum_build_layout_fn
                     #enum_deserialize_fn
                 }
             };
