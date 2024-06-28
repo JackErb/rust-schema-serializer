@@ -29,7 +29,7 @@ impl<T> BlockHandle<T> {
 }
 
 pub fn allocate_block<T>(layout: alloc::Layout) -> BlockHandle<T> {
-    // TODO: this is a memory leak
+    // TODO: this is a memory leak. We should clean this up when the definition is no longer in use.
     let ptr= unsafe {
         std::alloc::alloc(layout) as *mut T
     };

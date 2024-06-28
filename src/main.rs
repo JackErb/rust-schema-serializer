@@ -15,8 +15,8 @@ use std::alloc;
 
 #[derive(Debug)]
 pub enum SchemaValue<'a> {
-    Object(collections::HashMap<&'a str, SchemaValue<'a>>),
     // represents a schematized struct
+    Object(collections::HashMap<&'a str, SchemaValue<'a>>),
     Integer(i64),
     Decimal(f64),
     Bool(bool),
@@ -31,7 +31,8 @@ pub enum SchemaValue<'a> {
     //   Impl (schema owner pointer/mix in pattern)
     //     - we do support mix-ins in a way with enum variants w/ fields, but that breaks down
     //       for recursive cases (e.g. an enum which can itself reference the same enum)
-    //
+    //   Schema pointers, e.g. pointing to some memory within same .def file.
+    //     - point to an entry of an array
 }
 
 #[derive(Debug)]

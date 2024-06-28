@@ -150,6 +150,8 @@ fn parse_enum<'a>(ident: &'a String, tokens: &'a Vec<Token>, index: &mut usize) 
         SchemaValue::Null
     };
 
+    // TODO: Shouldn't allocate this on the heap.
+    // TODO: Don't allocate any more if Null.
     Ok(SchemaValue::EnumVariant(ident, Box::new(variant_field)))
 }
 
