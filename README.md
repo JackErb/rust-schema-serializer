@@ -1,6 +1,7 @@
 Rust serializer / deserializer built using procedural macros.
 
 Defines the procedural macro #[derive(Schematize)] which can be added to structs/enums.
+
     Functions includes:
       serialize
        - generates a schematized object representation of the object
